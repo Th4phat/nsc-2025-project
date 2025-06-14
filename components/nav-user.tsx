@@ -29,6 +29,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { signOut } from "@/convex/auth"
+import { useAuthActions } from "@convex-dev/auth/react"
 
 export function NavUser({
   user,
@@ -40,7 +42,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-
+  const { signOut } = useAuthActions();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -102,7 +104,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => signOut()}>
               <LogOut />
               Log out
             </DropdownMenuItem>

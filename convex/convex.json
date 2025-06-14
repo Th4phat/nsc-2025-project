@@ -1,0 +1,8 @@
+{
+  "schema": "./schema.ts",
+  "actions": {
+    "env": {
+      "GOOGLE_GENERATIVE_AI_API_KEY": "AIzaSyASo0ibr12IAa9NY575ZVLi3hVBoPCgA9U"
+    }
+  }
+}

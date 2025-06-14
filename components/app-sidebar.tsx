@@ -3,30 +3,20 @@
 import * as React from "react";
 import {
   Archive,
-  AudioWaveform,
   BookOpen,
-  Bot,
   Clock,
-  Command,
   Files,
   FlagTriangleRight,
   Folder,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
   Share2,
-  SquareTerminal,
   Trash2,
   Upload,
   WalletCards,
 } from "lucide-react";
-
+import Image from "next/image";
 import { NavMain } from "@/components/nav-main";
 import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
-import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -35,8 +25,11 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useRouter } from "next/navigation"; // Import useRouter
+import { useAuthActions } from "@convex-dev/auth/react";
 
-// This is sample data.
 const data = {
   user: {
     name: "นายช่วยเหลือ วาดภาพ",
@@ -44,75 +37,12 @@ const data = {
     avatar: "/avatars/shadcn.jpg",
   },
 
-  navMain: [
-    {
-      title: "รายงาน",
-      url: "#",
-      icon: FlagTriangleRight,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "ใบแจ้งหนี้",
-      url: "#",
-      icon: WalletCards,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "สัญญาค้าขาย",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-  ],
   projects: [
     {
       name: "เอกสารทั้งหมด",
       url: "/dashboard",
-      icon: Archive ,
-      isActive: true
+      icon: Archive,
+      isActive: true,
     },
     {
       name: "เพิ่มล่าสุด",
@@ -155,22 +85,44 @@ const data = {
         },
       ],
     },
-  ]
+  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const user = useQuery(api.myFunctions.getCurrentUser);
+  const aiCategories = useQuery(api.document.getUniqueAiCategories); // Fetch unique AI categories
+  const router = useRouter(); // Initialize useRouter
+
+  // Map AI categories to the NavMain items format
+  const aiCategoryNavItems = aiCategories?.map((categoryData) => ({
+    title: categoryData.category,
+    url: `/dashboard?category=${encodeURIComponent(categoryData.category)}`, // Link to dashboard with category param
+    icon: Folder, // You can choose a relevant icon or derive it
+    items: categoryData.items.map((doc) => ({
+      title: doc.name,
+      url: `/dashboard?documentId=${doc._id}`, // Link to document details
+    })),
+  })) || [];
+  console.log("ai cat",aiCategories)
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <Button className="p-5"> <Upload />อัพโหลดเอกสาร</Button>
+        {/* <Button className="p-5"> <Upload /></Button> */}
+        {/* <Image src={"/convex.svg"} alt={"logo"} width={50} height={50}/> */}
       </SidebarHeader>
       <SidebarContent>
         <NavProjects projects={data.projects} label="เอกสาร" />
-        <NavMain items={data.navMain} label="หมวดหมู่ AI" />
+        <NavMain items={aiCategoryNavItems} label="หมวดหมู่ AI" /> {/* Use fetched categories */}
         <NavMain items={data.mydocs} label="เอกสารของฉัน" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser
+          user={{
+            name: user?.name ?? data.user.name,
+            email: user?.email ?? data.user.email,
+            avatar: data.user.avatar, // Always use default avatar since Convex user doesn't have one
+          }}
+        />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

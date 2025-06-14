@@ -25,6 +25,7 @@ export default function Home() {
 
 function SignOutButton() {
   const { isAuthenticated } = useConvexAuth();
+  console.log("is authed", isAuthenticated)
   const { signOut } = useAuthActions();
   const router = useRouter();
   return (
@@ -48,7 +49,8 @@ function SignOutButton() {
 function Content() {
   const numbers = useQuery(api.myFunctions.listNumbers, { count: 10}) as number[] ?? [];
   const addNumber = useMutation(api.myFunctions.addNumber);
-
+  // const user = useQuery(api.myFunctions.getCurrentUser);
+  
   if (numbers === undefined) {
     return (
       <div className="mx-auto">
@@ -59,9 +61,6 @@ function Content() {
 
   return (
     <div className="flex flex-col gap-8 max-w-lg mx-auto">
-      <p>
-        Click the button below to generate a number that only you can see.
-      </p>
       <p>
         <button
           className="bg-foreground text-background text-sm px-4 py-2 rounded-md"

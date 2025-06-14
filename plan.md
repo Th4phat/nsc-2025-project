@@ -102,3 +102,7 @@
 *   **Enhanced UI/UX:** More polished UI, better responsiveness, loading states.
 
 This plan provides a roadmap, but flexibility is key in a hackathon. Prioritize the MVP features that best demonstrate the core value proposition, especially the AI integration and secure sharing.
+
+
+------
+can you plan to add an auto send feature that will auto send the document to rest of the users by using ai to evaluate based on context like what's that document? exameple like it's a document for hiring a new employee so it should be sending to someone that's in hr department, if there a person name in the document it should be sending to that person

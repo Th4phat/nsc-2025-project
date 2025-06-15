@@ -1,5 +1,5 @@
 # ---- Build Stage ----
-FROM oven/bun:1.2.15 AS build
+FROM oven/bun:1.2.2 AS build
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -11,7 +11,7 @@ COPY . .
 RUN bun run build
 
 # ---- Run Stage ----
-FROM oven/bun:1.2.15 AS run
+FROM oven/bun:1.2.2 AS run
 
 WORKDIR /app
 

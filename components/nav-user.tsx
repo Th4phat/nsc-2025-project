@@ -7,8 +7,9 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
+  UserPen,
 } from "lucide-react"
-
+import { useRouter } from "next/navigation"
 import {
   Avatar,
   AvatarFallback,
@@ -31,6 +32,8 @@ import {
 } from "@/components/ui/sidebar"
 import { signOut } from "@/convex/auth"
 import { useAuthActions } from "@convex-dev/auth/react"
+import router from "next/router"
+import Link from "next/link"
 
 export function NavUser({
   user,
@@ -83,10 +86,14 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
+              <Link href={"/profile"}>
+              <DropdownMenuItem >
+                
+                <UserPen />
+                โปรไฟล์
+                
               </DropdownMenuItem>
+              </Link>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>

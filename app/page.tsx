@@ -9,7 +9,7 @@ export default function DocumentUploader() {
   const { isAuthenticated } = useConvexAuth();
   console.log("is authed", isAuthenticated)
   const generateUploadUrl = useMutation(api.document.generateUploadUrl);
-  const createDocument = useMutation(api.document.createDocument);
+  const createDocument = useMutation(api.document_crud.createDocument);
   const [isUploading, setIsUploading] = useState(false);
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {

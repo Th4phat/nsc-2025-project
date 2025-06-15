@@ -1,46 +1,31 @@
+"use client"
 import React, { useState, Component, ErrorInfo, ReactNode } from "react";
 import { ShareModal } from "@/components/ShareModal";
 import { Button } from '@/components/ui/button';
-import { useQuery, useMutation } from "convex/react"; // Added useMutation
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
-
 import { Doc } from "../convex/_generated/dataModel";
 import { formatRelative } from "date-fns";
+import {
+  Download,
+  Share,
+  Edit3,
+  FolderOpen,
+  Trash2,
+  Calendar,
+  HardDrive,
+  FileType,
+  Tag,
+  FileQuestion,
+  MoreHorizontal,
+  Eye
+} from "lucide-react";
 
-// Simple Error Boundary Component
-interface ErrorBoundaryProps {
-  fallback: ReactNode;
-  children: ReactNode;
-}
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-class SimpleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("SimpleErrorBoundary caught an error:", error, errorInfo);
-    // You could log this to an error reporting service
-  }
-
-  render() {
-    if (this.state.hasError) {
-      // You could check this.state.error.message here for specific error handling
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
-// Component for the Download Button and its logic
+// Enhanced Download Button Component
 interface DownloadButtonSectionProps {
   document: Doc<"documents">;
 }
@@ -48,12 +33,12 @@ const DownloadButtonSection: React.FC<DownloadButtonSectionProps> = ({ document 
   const generateDownloadUrl = useQuery(api.document.generateDownloadUrl, { documentId: document._id });
 
   const handleDownload = async () => {
-    if (generateDownloadUrl && document) { // generateDownloadUrl is the URL string here
+    if (generateDownloadUrl && document) {
       const a = window.document.createElement("a");
       a.href = generateDownloadUrl;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
-      a.download = document.name; // Suggest filename
+      a.download = document.name;
       window.document.body.appendChild(a);
       a.click();
       window.document.body.removeChild(a);
@@ -61,189 +46,226 @@ const DownloadButtonSection: React.FC<DownloadButtonSectionProps> = ({ document 
   };
 
   if (!generateDownloadUrl) {
-    // If URL is not available (null, undefined, empty) or query is loading/skipped, render nothing.
     return null;
   }
 
   return (
     <Button
       variant="ghost"
-      className=""
+      size="sm"
+      className="w-full justify-start gap-2 h-9"
       title="ดาวน์โหลด"
       onClick={handleDownload}
     >
-      {/* Download Icon */}
-      ดาวน์โหลด
+      <Download className="h-4 w-4" />
+      <span className="hidden sm:inline">ดาวน์โหลด</span>
     </Button>
   );
 };
 
+// Utility function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 interface RightSidebarProps {
   document: Doc<"documents"> | null;
+  setSelectedDocument: (document: Doc<"documents"> | null) => void;
 }
 
-const RightSidebar: React.FC<RightSidebarProps> = ({ document }) => {
+const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocument }) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const deleteDocument = useMutation(api.document.deleteDocument);
+  const deleteDocument = useMutation(api.document_crud.deleteDocument);
+  const generateDownloadUrl = useQuery(api.document.generateDownloadUrl, document ? { documentId: document._id } : "skip");
 
-  // Fetch user permissions for the current document
-  const userPermissions = useQuery(api.document.getUserDocumentPermissions, document ? { documentId: document._id } : "skip");
-
-  // Fetch the current authenticated user's ID
-  const currentUser = useQuery(api.users.getCurrentUser); // Using the new Convex query
+  const userPermissions = useQuery(api.document_sharing.getUserDocumentPermissions, document ? { documentId: document._id } : "skip");
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   const handleDelete = async () => {
-    if (document) {
-      // Optional: Add a confirmation dialog here
-      // e.g., if (window.confirm("Are you sure you want to delete this document?")) {
+    if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะลบเอกสารนี้?")) {
       try {
         await deleteDocument({ documentId: document._id });
-        // Optionally, navigate away or show a success message
-        // For now, the component will re-render and document might become null if it was the active one
+        setSelectedDocument(null); // Deselect the document after successful deletion
       } catch (error) {
         console.error("Failed to delete document:", error);
-        // Optionally, show an error message to the user
       }
-      // }
     }
   };
 
   if (!document) {
-    return null;
+    return (
+      <aside className="w-full lg:w-80 xl:w-96 bg-white border-l border-slate-200 dark:bg-slate-900 dark:border-slate-800 flex-shrink-0">
+        <div className="p-6 flex items-center justify-center h-32 text-slate-500 dark:text-slate-400">
+          <div className="text-center">
+            <Eye className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">เลือกเอกสารเพื่อดูรายละเอียด</p>
+          </div>
+        </div>
+      </aside>
+    );
   }
 
-  // Determine button visibility based on permissions and ownership
   const canDownload = userPermissions?.includes("download");
-  const canEdit = userPermissions?.includes("edit_metadata"); // Corrected permission for editing
-  const canShare = userPermissions?.includes("resend"); // Existing share button logic
-  const isOwner = currentUser && document.ownerId === currentUser; // Check if current user is the owner
+  const canEdit = userPermissions?.includes("edit_metadata");
+  const canShare = userPermissions?.includes("resend");
+  const isOwner = currentUser && document.ownerId === currentUser.id;
 
   return (
-    <aside className="w-1/4 bg-white border-l border-gray-200 flex-shrink-0 flex flex-col overflow-y-auto">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 truncate mb-2">
+    <aside className="w-full lg:w-80 xl:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col">
+      {/* Header Section */}
+      <div className="p-4 lg:p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+        <h3 className="text-lg lg:text-xl font-semibold text-slate-900 dark:text-slate-100 truncate mb-4 leading-tight">
           {document.name}
         </h3>
-        <div className="flex items-center space-x-2">
+
+        {/* Action Buttons - Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
           {canDownload && (
-            <SimpleErrorBoundary fallback={null}>
-              <DownloadButtonSection document={document} />
-            </SimpleErrorBoundary>
+            // <SimpleErrorBoundary fallback={null}>
+            <DownloadButtonSection document={document} />
+            // </SimpleErrorBoundary>
           )}
           {canShare && (
             <Button
-              className="hover:cursor-pointer"
               variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 h-9"
               title="แชร์"
               onClick={() => setIsShareModalOpen(true)}
             >
-              {/* Share Icon */}
-              แชร์
+              <Share className="h-4 w-4" />
+              <span className="hidden sm:inline">แชร์</span>
             </Button>
           )}
           {canEdit && (
             <Button
               variant="ghost"
-              className=""
+              size="sm"
+              className="w-full justify-start gap-2 h-9"
               title="แก้ไขข้อมูล"
             >
-              {/* Edit Icon */}
-              แก้ไข
+              <Edit3 className="h-4 w-4" />
+              <span className="hidden sm:inline">แก้ไข</span>
             </Button>
           )}
-
-            <Button
-              variant="ghost"
-              className=""
-              title="ย้ายไปโฟลเดอร์"
-            >
-              {/* Move to Folder Icon */}
-              ย้าย
-            </Button>
-
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 h-9"
+            title="ย้ายไปโฟลเดอร์"
+          >
+            <FolderOpen className="h-4 w-4" />
+            <span className="hidden sm:inline">ย้าย</span>
+          </Button>
           {isOwner && (
             <Button
               variant="ghost"
-              className="p-1.5 rounded-full text-red-500 hover:bg-red-100 hover:text-red-700"
+              size="sm"
+              className="w-full justify-start gap-2 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20"
               title="ลบ"
-             onClick={handleDelete} // Added onClick handler
-           >
-             {/* Delete Icon */}
-             ลบ
-           </Button>
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">ลบ</span>
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="p-4 space-y-4 text-sm">
-         {/* Shared By: Need to fetch user information from ownerId or sharerId */}
-        <div>
-          <dt className="font-medium text-gray-500">วันที่อัปโหลด</dt>
-          <dd className="text-gray-900 mt-1">{formatRelative(new Date(document._creationTime), new Date())}</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-gray-500">ขนาดไฟล์</dt>
-          <dd className="text-gray-900 mt-1">{document.fileSize} bytes</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-gray-500">ประเภทไฟล์</dt>
-          <dd className="text-gray-900 mt-1">{document.mimeType}</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-gray-500 mb-1">หมวดหมู่ AI</dt>
-          <dd className="flex flex-wrap gap-1">
-            {document.aiCategories && document.aiCategories.map((tag: string, tagIndex: number) => {
-              const colors = ["bg-green-100", "bg-yellow-100", "bg-red-100", "bg-blue-100", "bg-purple-100"];
-              const textColor = ["text-green-800", "text-yellow-800", "text-red-800", "text-blue-800", "text-purple-800"];
-              const colorIndex = tagIndex % colors.length;
-              return (
-                <span
-                  key={tagIndex}
-                  className={`${colors[colorIndex]} ${textColor[colorIndex]} text-xs font-medium px-2.5 py-0.5 rounded-full`}
-                >
-                  {tag}
-                </span>
-              );
-            })}
-          </dd>
-        </div>
-        {/* <div>
-          <dt className="font-medium text-gray-500 mb-1">แชร์ให้กับ</dt>
-          <dd className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">
-                  บจ
-                </span>
-                <span>สายฟ้า สว่างตา</span>
-              </span>
-              <span className="text-gray-500">ดูได้เท่านั้น</span>
+      <ScrollArea className="flex-1">
+        {/* Document Information */}
+        <div className="p-4 lg:p-6 space-y-6">
+          {/* Upload Date */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+              <Calendar className="h-4 w-4" />
+              <span className="text-sm font-medium">วันที่อัปโหลด</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-pink-500 text-white flex items-center justify-center text-xs">
-                  ชด
-                </span>
-                <span>ทองคำ ร่ำรวย</span>
-              </span>
-              <span className="text-gray-500">ดูได้เท่านั้น</span>
-            </div>
-          </dd>
-        </div> */}
-      </div>
+            <p className="text-slate-900 dark:text-slate-100 text-sm pl-6">
+              {formatRelative(new Date(document._creationTime), new Date())}
+            </p>
+          </div>
 
-      <div className="flex-grow p-4 border-t border-gray-200">
-        <h4 className="text-sm font-medium text-gray-500 mb-2">
-          แสดงตัวอย่าง
-        </h4>
-        <div className="bg-gray-100 border border-gray-200 rounded-md h-64 flex items-center justify-center text-gray-400">
-          <div className="text-center">
-            {/* File Question Icon */}
-            ไม่สามารถแสดงตัวอย่างได้
+          <Separator />
+
+          {/* File Size */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+              <HardDrive className="h-4 w-4" />
+              <span className="text-sm font-medium">ขนาดไฟล์</span>
+            </div>
+            <p className="text-slate-900 dark:text-slate-100 text-sm pl-6">
+              {formatFileSize(document.fileSize)}
+            </p>
+          </div>
+
+          <Separator />
+
+          {/* File Type */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+              <FileType className="h-4 w-4" />
+              <span className="text-sm font-medium">ประเภทไฟล์</span>
+            </div>
+            <Badge variant="secondary" className="ml-6 text-xs">
+              {document.mimeType}
+            </Badge>
+          </div>
+
+          {/* AI Categories */}
+          {document.aiCategories && document.aiCategories.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                  <Tag className="h-4 w-4" />
+                  <span className="text-sm font-medium">หมวดหมู่ AI</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pl-6">
+                  {document.aiCategories.map((tag: string, tagIndex: number) => {
+                    const colors = [
+                      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400",
+                      "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400",
+                      "bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400",
+                      "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
+                      "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400"
+                    ];
+                    const colorClass = colors[tagIndex % colors.length];
+                    return (
+                      <Badge
+                        key={tagIndex}
+                        variant="secondary"
+                        className={`${colorClass} text-xs font-medium px-2 py-1 rounded-md border-0`}
+                      >
+                        {tag}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Preview Section */}
+        <div className="border-t border-slate-200 dark:border-slate-800 p-4 lg:p-6">
+          <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            แสดงตัวอย่าง
+          </h4>
+          <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg h-48 lg:h-64 flex items-center justify-center">
+            <div className="text-center text-slate-400 dark:text-slate-500">
+              {generateDownloadUrl && (
+                <embed src={generateDownloadUrl} type={document.mimeType} width="100%" height="100%" />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </ScrollArea>
 
       <ShareModal
         isOpen={isShareModalOpen}

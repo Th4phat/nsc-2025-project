@@ -8,7 +8,7 @@ export function DocumentList() {
   const category = searchParams.get("category");
 
   // useQuery automatically fetches the data and updates when it changes.
-  const documents = useQuery(api.document.getMyDocuments, { category: category ?? undefined });
+  const documents = useQuery(api.folders.getDocuments, { category: category ?? undefined });
 
   // State 1: Loading
   if (documents === undefined) {

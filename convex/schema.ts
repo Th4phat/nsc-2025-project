@@ -79,10 +79,21 @@ export default defineSchema({
     aiCategories: v.optional(v.array(v.string())),
     aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
     aiProcessingError: v.optional(v.string()),
+    folderId: v.optional(v.id("folders")), // <-- NEW FIELD
   })
     .index("by_ownerId", ["ownerId"])
     .index("by_status", ["status"])
-    .index("by_aiCategory", ["aiCategories"]),
+    .index("by_aiCategory", ["aiCategories"])
+    .index("by_folderId", ["folderId"]), // <-- NEW INDEX
+
+  folders: defineTable({
+    name: v.string(),
+    ownerId: v.id("users"),
+    // Optional field for nested folders. `null` indicates a root folder.
+    parentFolderId: v.optional(v.id("folders")),
+  })
+    // Index to efficiently query folders by owner and parent
+    .index("by_owner_and_parent", ["ownerId", "parentFolderId"]),
 
   documentShares: defineTable({
     documentId: v.id("documents"),

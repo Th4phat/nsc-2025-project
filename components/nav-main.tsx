@@ -20,7 +20,8 @@ import {
 
 export function NavMain({
   items,
-  label
+  label,
+  onMoveClick // Destructure onMoveClick
 }: {
   items: {
     title: string
@@ -30,9 +31,11 @@ export function NavMain({
     items?: {
       title: string
       url: string
+      documentId?: string; // Add optional documentId
     }[]
   }[],
-  label: string
+  label: string,
+  onMoveClick?: (documentId: string) => void; // Add optional onMoveClick prop
 }) {
   return (
     <SidebarGroup>
@@ -58,8 +61,19 @@ export function NavMain({
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton asChild>
-                        <a href={subItem.url}>
+                        <a href={subItem.url} className="flex justify-between items-center w-full"> {/* Adjust styling for button */}
                           <span>{subItem.title}</span>
+                          {subItem.documentId && onMoveClick && ( // Render button if documentId and onMoveClick exist
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault(); // Prevent navigation
+                                onMoveClick(subItem.documentId!);
+                              }}
+                              className="ml-2 p-1 hover:bg-gray-200 rounded" // Basic styling for button
+                            >
+                              <Folder size={16} /> {/* Use Folder icon */}
+                            </button>
+                          )}
                         </a>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
@@ -73,3 +87,5 @@ export function NavMain({
     </SidebarGroup>
   )
 }
+
+import { Folder } from "lucide-react"; // Import Folder icon

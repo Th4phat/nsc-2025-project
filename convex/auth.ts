@@ -1,4 +1,3 @@
-"use server"
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 

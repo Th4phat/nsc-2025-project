@@ -1,4 +1,3 @@
-
 import {
   convexAuthNextjsMiddleware,
   createRouteMatcher,
@@ -9,17 +8,13 @@ const isSignInPage = createRouteMatcher(["/signin"]);
 const isProtectedRoute = createRouteMatcher(["/", "/server", "/dashboard"]);
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
-  if (request.nextUrl) { // Ensure request.nextUrl is available
-    if (isSignInPage(request) && (await convexAuth.isAuthenticated())) {
-      return nextjsMiddlewareRedirect(request, "/");
-    }
-    if (isProtectedRoute(request) && !(await convexAuth.isAuthenticated())) {
-      return nextjsMiddlewareRedirect(request, "/signin");
-    }
+  if (isSignInPage(request) && (await convexAuth.isAuthenticated())) {
+    return nextjsMiddlewareRedirect(request, "/");
   }
-  // If request.nextUrl is not available, return undefined to let Next.js handle it
-  return undefined;
-}, { verbose: true });
+  if (isProtectedRoute(request) && !(await convexAuth.isAuthenticated())) {
+    return nextjsMiddlewareRedirect(request, "/signin");
+  }
+});
 
 export const config = {
   // The following matcher runs middleware on all routes

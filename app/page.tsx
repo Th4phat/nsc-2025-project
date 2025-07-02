@@ -3,7 +3,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { useState } from "react";
-import { DocumentList } from "@/components/DocList";
+// import { DocumentList } from "@/components/DocList";
 
 export default function DocumentUploader() {
   const { isAuthenticated } = useConvexAuth();

@@ -3,19 +3,17 @@
 import * as React from "react";
 import {
   Archive,
-  BookOpen,
-  Clock,
   Files,
-  FlagTriangleRight,
   Folder,
+  FolderPlus,
   Share2,
   Trash2,
-  Upload,
-  WalletCards,
+  Send,
+  Users,
+  Settings,
+  FileText,
 } from "lucide-react";
-import Image from "next/image";
 import { NavMain } from "@/components/nav-main";
-import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
@@ -27,19 +25,17 @@ import {
 import { Button } from "./ui/button";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useRouter } from "next/navigation"; // Import useRouter
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group"; // Import RadioGroup components
+import { NavProjects } from "./nav-projects";
 
 const data = {
   user: {
     name: "นายช่วยเหลือ วาดภาพ",
     email: "m@cooperate.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "/avatars/placeholder.jpg",
   },
 
   projects: [
@@ -48,11 +44,6 @@ const data = {
       url: "/dashboard",
       icon: Archive,
       isActive: true,
-    },
-    {
-      name: "เพิ่มล่าสุด",
-      url: "#",
-      icon: Clock,
     },
     {
       name: "แชร์ให้แล้ว",
@@ -74,17 +65,15 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = useQuery(api.users.getCurrentUser);
+  const permissions = useQuery(api.users.getPermissionsByUserId);
+  console.log("perm",permissions)
   const aiCategories = useQuery(api.document.getUniqueAiCategories); // Fetch unique AI categories
-  const folders = useQuery(api.folders.getFolders); // Fetch folders
-  const documents = useQuery(api.folders.getDocuments, {}); // Fetch all documents
+  const folders = useQuery(api.folders.getFolders, {}); // Fetch folders
+  const documents = useQuery(api.document.getDocumentsInAllFolders, {}); // Fetch all documents in folders
   const createFolder = useMutation(api.folders.createFolder); // Mutation to create folders
-  const router = useRouter(); // Initialize useRouter
 
   const [newFolderName, setNewFolderName] = useState("");
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false);
-  const [isMoveDocumentDialogOpen, setIsMoveDocumentDialogOpen] = useState(false); // State for move document modal
-  const [documentToMoveId, setDocumentToMoveId] = useState<string | null>(null); // State for document being moved
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null); // State for selected folder
 
   const handleCreateFolder = async () => {
     if (newFolderName.trim()) {
@@ -93,6 +82,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       setIsNewFolderDialogOpen(false);
     }
   };
+
+  const hasPermission = (p: string) => permissions?.includes(p);
 
   // Organize documents under folders
   const folderItems = folders?.map(folder => {
@@ -109,26 +100,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     };
   }) || [];
 
-  const topLevelDocuments = documents?.filter(doc => !doc.folderId).map(doc => ({
-    title: doc.name,
-    url: `/dashboard?documentId=${doc._id}`,
-    documentId: doc._id, // Add documentId
-  })) || [];
-
-  const topLevelItems = [
-    {
-      title: "เอกสารทั้งหมด",
-      url: "/dashboard",
-      icon: Archive,
-      isActive: true,
-    },
-    ...topLevelDocuments.map(doc => ({
-      title: doc.title,
-      url: doc.url,
-      icon: BookOpen, // Or another suitable icon for documents
-      documentId: doc.documentId, // Add documentId
-    }))
-  ];
 
   // Map AI categories to the NavMain items format
   const aiCategoryNavItems = aiCategories?.map((categoryData) => ({
@@ -142,23 +113,38 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     })),
   })) || [];
 
-  const folderNavItems = folders?.map((folder) => ({
-    title: folder.name,
-    url: `/dashboard?folderId=${folder._id}`,
-    icon: Folder,
-    items: [], // Sub-folders can be populated here in the future
-  })) || [];
-
-  const moveDocument = useMutation(api.folders.moveDocumentToFolder); // Mutation to move documents
-
-  const handleMoveDocument = async () => {
-    if (documentToMoveId && selectedFolderId) {
-      await moveDocument({ documentId: documentToMoveId as any, folderId: selectedFolderId as any });
-      setIsMoveDocumentDialogOpen(false);
-      setDocumentToMoveId(null);
-      setSelectedFolderId(null);
-    }
-  };
+  const adminNavItems = [
+    {
+      name: "ส่งเอกสารเหมารวมแผนก",
+      url: "/department-send",
+      icon: Send,
+      hidden: !hasPermission("document:send:department"),
+    },
+    {
+      name: "ส่งเอกสารแบบเหมารวม",
+      url: "/company-send",
+      icon: Send,
+      hidden: !hasPermission("document:send:company"),
+    },
+    {
+      name: "จัดการผู้ใช้",
+      url: "/users",
+      icon: Users,
+      hidden: !hasPermission("user:update:any"),
+    },
+    {
+      name: "ดูเหตุการณ์ของระบบ",
+      url: "/logs",
+      icon: FileText,
+      hidden: !hasPermission("system:logs:read"),
+    },
+    {
+      name: "ตั้งค่าระบบ",
+      url: "/settings",
+      icon: Settings,
+      hidden: !hasPermission("system:settings:read"),
+    },
+  ].filter(item => !item.hidden);
 
 
   return (
@@ -168,31 +154,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <Image src={"/convex.svg"} alt={"logo"} width={50} height={50}/> */}
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={topLevelItems} label="เอกสาร" onMoveClick={(documentId) => { // Add onMoveClick
-          setDocumentToMoveId(documentId);
-          setIsMoveDocumentDialogOpen(true);
-        }} />
-        <NavMain items={aiCategoryNavItems} label="หมวดหมู่ AI" onMoveClick={(documentId) => { // Add onMoveClick
-          setDocumentToMoveId(documentId);
-          setIsMoveDocumentDialogOpen(true);
-        }} /> {/* Use fetched categories */}
-        <NavMain items={folderItems} label="โฟลเดอร์" onMoveClick={(documentId) => { // Add onMoveClick
-          setDocumentToMoveId(documentId);
-          setIsMoveDocumentDialogOpen(true);
-        }} />
-
+        {/* <NavMain items={topLevelItems} label="เอกสาร" /> */}
+        <NavProjects projects={data.projects} label={"เอกสาร"} />
+        <NavMain items={aiCategoryNavItems} label="หมวดหมู่ AI" />
+        <NavMain items={folderItems} label="โฟลเดอร์" />
+        {adminNavItems.length > 0 && <NavProjects projects={adminNavItems} label="อื่น ๆ" />}
+        
         <Dialog open={isNewFolderDialogOpen} onOpenChange={setIsNewFolderDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="w-full mt-4">New Folder</Button>
+            <Button variant="outline" className="m-4"><FolderPlus /></Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Folder</DialogTitle>
+              <DialogTitle>สร้างโฟลเดอร์ใหม่</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="folderName" className="text-right">
-                  Folder Name
+                  ชื่อโฟลเดอร์
                 </Label>
                 <Input
                   id="folderName"
@@ -204,39 +183,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline">ยกเลิก</Button>
               </DialogClose>
-              <Button onClick={handleCreateFolder}>Create</Button>
+              <Button onClick={handleCreateFolder}>สร้าง</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        {/* Move Document Modal */}
-        <Dialog open={isMoveDocumentDialogOpen} onOpenChange={setIsMoveDocumentDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Move Document</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <Label>Select a folder:</Label>
-              <RadioGroup onValueChange={setSelectedFolderId}>
-                {folders?.map(folder => (
-                  <div key={folder._id} className="flex items-center space-x-2">
-                    <RadioGroupItem value={folder._id} id={folder._id} />
-                    <Label htmlFor={folder._id}>{folder.name}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button onClick={handleMoveDocument} disabled={!selectedFolderId}>Move</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
       </SidebarContent>
       <SidebarFooter>
         <NavUser

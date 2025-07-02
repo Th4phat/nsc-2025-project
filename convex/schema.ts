@@ -8,24 +8,11 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
-  // --- NEW: Data-driven permissions for maximum flexibility ---
-  permissions: defineTable({
-    // A unique identifier for the permission, e.g., "CAN_MODIFY_USER_PROFILE"
-    name: v.string(),
-    description: v.optional(v.string()),
-  }).index("by_name", ["name"]),
-
-  // --- NEW: Join table to link roles to their permissions ---
-  rolePermissions: defineTable({
-    roleId: v.id("roles"),
-    permissionId: v.id("permissions"),
-  }).index("by_role_permission", ["roleId", "permissionId"]), // Efficiently find all permissions for a role
 
   roles: defineTable({
     name: v.string(),
-    rank: v.number(), // Lower number means higher rank
-    // MODIFIED: The hardcoded permissions object has been removed.
-    // Permissions are now managed in the `permissions` and `rolePermissions` tables.
+    rank: v.number(), // Higher number means higher rank
+    permissions: v.array(v.string()),
   })
     .index("by_name", ["name"])
     .index("by_rank", ["rank"]),
@@ -41,14 +28,17 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_roleId", ["roleId"])
-    .index("by_status", ["status"]), // NEW: Index for filtering by status
+    .index("by_status", ["status"]) // NEW: Index for filtering by status
+    .index("by_departmentId", ["departmentId"]),
 
   profiles: defineTable({
     userId: v.id("users"),
+    title: v.optional(v.string()),
     bio: v.optional(v.string()),
-    age: v.optional(v.number()),
     address: v.optional(v.string()),
     phone: v.optional(v.string()),
+    website: v.optional(v.string()),
+    age: v.optional(v.number()),
     gender: v.optional(v.string()),
     employeeID: v.optional(v.string()),
   }).index("by_userId", ["userId"]),
@@ -79,12 +69,19 @@ export default defineSchema({
     aiCategories: v.optional(v.array(v.string())),
     aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
     aiProcessingError: v.optional(v.string()),
-    folderId: v.optional(v.id("folders")), // <-- NEW FIELD
+    classified: v.optional(v.boolean()),
   })
     .index("by_ownerId", ["ownerId"])
     .index("by_status", ["status"])
-    .index("by_aiCategory", ["aiCategories"])
-    .index("by_folderId", ["folderId"]), // <-- NEW INDEX
+    .index("by_aiCategory", ["aiCategories"]),
+
+  documentFolders: defineTable({
+    documentId: v.id("documents"),
+    folderId: v.id("folders"),
+    userId: v.id("users"),
+  })
+    .index("by_user_folder", ["userId", "folderId"])
+    .index("by_user_document", ["userId", "documentId"]),
 
   folders: defineTable({
     name: v.string(),
@@ -116,6 +113,14 @@ export default defineSchema({
     .index("by_recipientId", ["recipientId"])
     .index("by_document_recipient", ["documentId", "recipientId"]),
 
+  userDocumentStatus: defineTable({
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    isRead: v.boolean(),
+  })
+    .index("by_user_document", ["userId", "documentId"])
+    .index("by_user_unread", ["userId", "isRead"]),
+    
   // --- NEW: Audit log for tracking important actions ---
   auditLogs: defineTable({
     actorId: v.id("users"), // The user who performed the action

@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as auth from "../auth.js";
+import type * as departments from "../departments.js";
 import type * as document from "../document.js";
 import type * as document_crud from "../document_crud.js";
 import type * as document_process from "../document_process.js";
@@ -21,6 +22,9 @@ import type * as document_sharing from "../document_sharing.js";
 import type * as folders from "../folders.js";
 import type * as http from "../http.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as roles from "../roles.js";
+import type * as run_seed from "../run_seed.js";
+import type * as seed_users from "../seed_users.js";
 import type * as users from "../users.js";
 
 /**
@@ -33,6 +37,7 @@ import type * as users from "../users.js";
  */
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  departments: typeof departments;
   document: typeof document;
   document_crud: typeof document_crud;
   document_process: typeof document_process;
@@ -40,6 +45,9 @@ declare const fullApi: ApiFromModules<{
   folders: typeof folders;
   http: typeof http;
   myFunctions: typeof myFunctions;
+  roles: typeof roles;
+  run_seed: typeof run_seed;
+  seed_users: typeof seed_users;
   users: typeof users;
 }>;
 export declare const api: FilterApi<

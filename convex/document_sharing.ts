@@ -1,6 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { mutationWithAuth } from "./auth";
+import { internal } from "./_generated/api";
 
 export const shareDocument = mutation({
     args: {
@@ -47,6 +49,23 @@ export const shareDocument = mutation({
                 recipientId: args.recipientId,
                 sharerId: sharerId,
                 permissionGranted: args.permissions,
+            });
+        }
+
+        const userDocumentStatus = await ctx.db
+            .query("userDocumentStatus")
+            .withIndex("by_user_document", (q) =>
+                q.eq("userId", args.recipientId).eq("documentId", args.documentId)
+            )
+            .unique();
+
+        if (userDocumentStatus) {
+            await ctx.db.patch(userDocumentStatus._id, { isRead: false });
+        } else {
+            await ctx.db.insert("userDocumentStatus", {
+                userId: args.recipientId,
+                documentId: args.documentId,
+                isRead: false,
             });
         }
 
@@ -236,5 +255,233 @@ export const getSharedDocuments = query({
         }
 
         return sharedDocuments;
+    },
+});
+
+export const getUnreadDocuments = query({
+    args: {},
+    returns: v.array(v.id("documents")),
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            return [];
+        }
+
+        const unreadDocuments = await ctx.db
+            .query("userDocumentStatus")
+            .withIndex("by_user_unread", (q) =>
+                q.eq("userId", userId).eq("isRead", false)
+            )
+            .collect();
+
+        return unreadDocuments.map((status) => status.documentId);
+    },
+});
+
+export const getUnreadDocumentsWithDetails = query({
+    args: {},
+    returns: v.array(
+        v.object({
+            _id: v.id("documents"),
+            _creationTime: v.number(),
+            ownerId: v.id("users"),
+            name: v.string(),
+            description: v.optional(v.string()),
+            fileId: v.id("_storage"),
+            mimeType: v.string(),
+            fileSize: v.number(),
+            status: v.union(
+                v.literal("uploading"),
+                v.literal("processing"),
+                v.literal("completed"),
+                v.literal("failed"),
+                v.literal("trashed")
+            ),
+            aiCategories: v.optional(v.array(v.string())),
+            aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
+            aiProcessingError: v.optional(v.string()),
+            folderId: v.optional(v.id("folders")),
+            classified: v.optional(v.boolean()),
+            shareCreator: v.object({
+                _id: v.id("users"),
+                name: v.optional(v.string()),
+            }),
+        })
+    ),
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            return [];
+        }
+
+        const unreadStatuses = await ctx.db
+            .query("userDocumentStatus")
+            .withIndex("by_user_unread", (q) =>
+                q.eq("userId", userId).eq("isRead", false)
+            )
+            .collect();
+
+        const documents = [];
+        for (const status of unreadStatuses) {
+            const document = await ctx.db.get(status.documentId);
+            if (document) {
+                const share = await ctx.db
+                    .query("documentShares")
+                    .withIndex("by_document_recipient", (q) =>
+                        q
+                            .eq("documentId", document._id)
+                            .eq("recipientId", userId)
+                    )
+                    .first();
+
+                if (share) {
+                    const shareCreator = await ctx.db.get(share.sharerId);
+                    if (shareCreator) {
+                        documents.push({
+                            ...document,
+                            shareCreator: {
+                                _id: shareCreator._id,
+                                name: shareCreator.name,
+                            },
+                        });
+                    }
+                }
+            }
+        }
+        return documents;
+    },
+});
+
+export const markDocumentAsRead = mutation({
+    args: {
+        documentId: v.id("documents"),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new Error("Authenticated user not found.");
+        }
+
+        const userDocumentStatus = await ctx.db
+            .query("userDocumentStatus")
+            .withIndex("by_user_document", (q) =>
+                q.eq("userId", userId).eq("documentId", args.documentId)
+            )
+            .unique();
+
+        if (userDocumentStatus) {
+            await ctx.db.patch(userDocumentStatus._id, { isRead: true });
+        } else {
+            // Optionally, create a record if it doesn't exist, marking it as read.
+            // This can be useful if a user interacts with a document they received
+            // before this notification system was in place.
+            await ctx.db.insert("userDocumentStatus", {
+                userId: userId,
+                documentId: args.documentId,
+                isRead: true,
+            });
+        }
+
+        return null;
+    },
+});
+export const sendDocumentToDepartment = mutationWithAuth([
+    "document:send:department",
+])({
+    args: {
+        documentId: v.id("documents"),
+    },
+    handler: async (ctx, args) => {
+        const user = await ctx.runQuery(internal.auth.getUser);
+        if (!user || !user.departmentId) {
+            throw new Error("User not found or not in a department");
+        }
+
+        const departmentMembers = await ctx.db
+            .query("users")
+            .withIndex("by_departmentId", (q) =>
+                q.eq("departmentId", user.departmentId!)
+            )
+            .collect();
+
+        for (const member of departmentMembers) {
+            // Avoid sharing with oneself if that's the desired logic
+            if (member._id === user._id) {
+                continue;
+            }
+            await ctx.db.insert("documentShares", {
+                documentId: args.documentId,
+                recipientId: member._id,
+                sharerId: user._id,
+                permissionGranted: ["view"],
+            });
+        }
+
+        await ctx.db.insert("auditLogs", {
+            actorId: user._id,
+            action: "document.send.department",
+            targetTable: "documents",
+            targetId: args.documentId,
+            details: {
+                departmentId: user.departmentId,
+            },
+        });
+
+        return null;
+    },
+});
+export const sendDocumentToCompany = mutationWithAuth([
+    "document:send:company",
+])({
+    args: {
+        documentId: v.id("documents"),
+        departmentIds: v.optional(v.array(v.id("departments"))),
+    },
+    handler: async (ctx, args) => {
+        const user = await ctx.runQuery(internal.auth.getUser);
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        let usersToShareWith = [];
+        if (args.departmentIds && args.departmentIds.length > 0) {
+            const departmentMembers = await Promise.all(
+                args.departmentIds.map((departmentId) =>
+                    ctx.db
+                        .query("users")
+                        .withIndex("by_departmentId", (q) =>
+                            q.eq("departmentId", departmentId)
+                        )
+                        .collect()
+                )
+            );
+            usersToShareWith = departmentMembers.flat();
+        } else {
+            usersToShareWith = await ctx.db.query("users").collect();
+        }
+
+        for (const member of usersToShareWith) {
+            if (member._id === user._id) {
+                continue;
+            }
+            await ctx.db.insert("documentShares", {
+                documentId: args.documentId,
+                recipientId: member._id,
+                sharerId: user._id,
+                permissionGranted: ["view"],
+            });
+        }
+
+        await ctx.db.insert("auditLogs", {
+            actorId: user._id,
+            action: "document.send.company",
+            targetTable: "documents",
+            targetId: args.documentId,
+            details: {
+                departmentIds: args.departmentIds,
+            },
+        });
+
+        return null;
     },
 });

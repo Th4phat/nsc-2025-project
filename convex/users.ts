@@ -1,7 +1,9 @@
-import { query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
+import { mutationWithAuth, queryWithAuth, auth } from "./auth";
 
 export const getCurrentUserID = query({
   args: {},
@@ -16,34 +18,80 @@ export const getCurrentUser = query({
   returns: v.union(
     v.object({
       id: v.id("users"),
-      name: v.optional(v.string()), // name can be optional
-      email: v.optional(v.string()), // email can be optional
+      email: v.optional(v.string()),
+      name: v.optional(v.string()),
     }),
-    v.null(),
+    v.null()
   ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    console.log(userId);
-
-    const identity = await ctx.auth.getUserIdentity();
-    console.log("ident", identity?.email);
-
     if (!userId) {
       return null;
     }
-
     const user = await ctx.db.get(userId);
-
     if (!user) {
       return null;
     }
-
     return {
       id: user._id,
-      name: user.name, // Will be undefined/null if auth provider doesn't supply it or it's not stored
-      email: user.email, // Will be undefined/null if auth provider doesn't supply it or it's not stored
+      email: user.email,
+      name: user.name,
     };
   },
+});
+
+export const getMyProfile = queryWithAuth(["profile:read:own"])({
+	 args: {},
+	 handler: async (ctx) => {
+	   const userId = await getAuthUserId(ctx);
+	   if (!userId) {
+	     return null;
+	   }
+	   const user = await ctx.db.get(userId);
+	   if (!user) {
+	     return null;
+	   }
+	   if (!user.profileId) {
+	     return { user };
+	   }
+	   const profile = await ctx.db.get(user.profileId);
+	   return { user, profile };
+	 },
+});
+
+export const updateUserProfile = mutation( {
+	 args: {
+	  //  name: v.string(),
+      phone:v.string(),
+	   bio: v.string(),
+	   title: v.string(),
+	   location: v.string(),
+	   website: v.string(),
+	 },
+	 handler: async (ctx, args) => {
+	   const userId = await getAuthUserId(ctx);
+	   if (!userId) {
+	     throw new Error("Authenticated user not found.");
+	   }
+
+	   const user = await ctx.db.get(userId);
+
+	   if (!user) {
+	     throw new Error("User not found");
+	   }
+
+	  //  await ctx.db.patch(user._id, { name: args.name });
+
+	   if (user.profileId) {
+	     await ctx.db.patch(user.profileId, {
+          phone: args.phone,
+	       bio: args.bio,
+	      //  title: args.title,
+	       address: args.location,
+	       website: args.website,
+	     });
+	   }
+	 },
 });
 export const getAllUsers = query({
   args: {},
@@ -132,3 +180,97 @@ export const listUsersForShare = query({
     })).filter(user => user._id !== currentUserId);
   },
 });
+
+export const getMyPermissions = queryWithAuth([])({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx): Promise<string[]> => {
+    const user: Doc<"users"> | null = await ctx.runQuery(internal.auth.getUser);
+    if (!user || !user.roleId) {
+      return [];
+    }
+
+    const role: Doc<"roles"> | null = await ctx.db.get(user.roleId);
+
+    if (!role) {
+      return [];
+    }
+
+    return role.permissions || [];
+  },
+});
+
+export const getPermissionsByUserId = query({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx, args): Promise<string[]> => {
+    const userId = await getAuthUserId(ctx);
+	   if (!userId) {
+	     throw new Error("Authenticated user not found.");
+	   }
+    const user: Doc<"users"> | null = await ctx.db.get(userId);
+    if (!user || !user.roleId) {
+      return [];
+    }
+
+    const role: Doc<"roles"> | null = await ctx.db.get(user.roleId);
+
+    if (!role) {
+      return [];
+    }
+
+    return role.permissions || [];
+  },
+});
+export const getDepartmentMembers = queryWithAuth(["user:list:department"])({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("users"),
+      _creationTime: v.number(),
+      email: v.string(),
+      name: v.optional(v.string()),
+      roleId: v.optional(v.id("roles")),
+      profileId: v.optional(v.id("profiles")),
+      departmentId: v.optional(v.id("departments")),
+      status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
+    })
+  ),
+  handler: async (ctx): Promise<Doc<"users">[]> => {
+    const user: Doc<"users"> | null = await ctx.runQuery(internal.auth.getUser);
+
+    if (!user || !user.departmentId) {
+      // Or throw new ConvexError("User is not in a department.");
+      return [];
+    }
+
+    const members: Doc<"users">[] = await ctx.db
+      .query("users")
+      .withIndex("by_departmentId", (q) =>
+        q.eq("departmentId", user.departmentId!)
+      )
+      .collect();
+
+    return members;
+  },
+});
+export const getCompanyDirectory = queryWithAuth(["user:list:company"])({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("users"),
+      _creationTime: v.number(),
+      email: v.string(),
+      name: v.optional(v.string()),
+      roleId: v.optional(v.id("roles")),
+      profileId: v.optional(v.id("profiles")),
+      departmentId: v.optional(v.id("departments")),
+      status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
+    })
+  ),
+  handler: async (ctx): Promise<Doc<"users">[]> => {
+    const users = await ctx.db.query("users").collect();
+    return users;
+  },
+});
+

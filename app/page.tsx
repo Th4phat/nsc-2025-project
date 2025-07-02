@@ -49,7 +49,7 @@ export default function DocumentUploader() {
       />
       {isUploading && <p>Uploading...</p>}
 
-      <DocumentList />
+      {/* <DocumentList /> */}
     </div>
   );
 }

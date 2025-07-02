@@ -5,17 +5,17 @@ import {
 } from "@convex-dev/auth/nextjs/server";
 
 const isSignInPage = createRouteMatcher(["/signin"]);
-const isProtectedRoute = createRouteMatcher(["/", "/server", "/dashboard(.*)"]);
+const isProtectedRoute = createRouteMatcher(["/", "/server", "/dashboard"]);
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   if (isSignInPage(request) && (await convexAuth.isAuthenticated())) {
-    return nextjsMiddlewareRedirect(request, "/");
+    return nextjsMiddlewareRedirect(request, "/dashboard");
   }
-  // if (isProtectedRoute(request) && !(await convexAuth.isAuthenticated())) {
-  //   return nextjsMiddlewareRedirect(request, "/signin");
-  // }
+  if (isProtectedRoute(request) && !(await convexAuth.isAuthenticated())) {
+    return nextjsMiddlewareRedirect(request, "/signin");
+  }
 });
 
 export const config = {
   matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
-};
+}

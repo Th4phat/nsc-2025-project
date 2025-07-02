@@ -9,6 +9,7 @@ export const createDocument = mutation({
         fileId: v.id("_storage"),
         mimeType: v.string(),
         fileSize: v.number(),
+        classified: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
         // 1. Get the identity of the user calling this mutation.
@@ -37,6 +38,7 @@ export const createDocument = mutation({
             fileSize: args.fileSize,
             ownerId: userId, // Use the Convex _id obtained from getAuthUserId
             status: "processing", // Initial status
+            classified: args.classified,
         });
 
         // Schedule the document processing immediately
@@ -156,4 +158,19 @@ export const deleteDocument = mutation({
 
         return null;
     },
+});
+
+export const updateDocumentCategories = mutation({
+  args: {
+    documentId: v.id("documents"),
+    categories: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Patch the document with the categories generated on the client
+    await ctx.db.patch(args.documentId, {
+      aiCategories: args.categories,
+      // You can also update a status field here if you have one
+      status: "completed",
+    });
+  },
 });

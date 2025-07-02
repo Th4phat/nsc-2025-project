@@ -7,8 +7,9 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { Doc } from "../convex/_generated/dataModel";
+import { Doc, Id } from "../convex/_generated/dataModel";
 import { formatRelative } from "date-fns";
+import PDFViewer from "react-pdf-view"
 import {
   Download,
   Share,
@@ -23,6 +24,9 @@ import {
   MoreHorizontal,
   Eye
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
+import { Label } from "./ui/label";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 
 // Enhanced Download Button Component
@@ -79,6 +83,11 @@ interface RightSidebarProps {
 
 const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocument }) => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isMoveToFolderOpen, setIsMoveToFolderOpen] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<Id<"folders"> | null>(null);
+
+  const folders = useQuery(api.folders.getFolders, {});
+  const moveDocument = useMutation(api.document.moveDocument);
   const deleteDocument = useMutation(api.document_crud.deleteDocument);
   const generateDownloadUrl = useQuery(api.document.generateDownloadUrl, document ? { documentId: document._id } : "skip");
 
@@ -93,6 +102,13 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
       } catch (error) {
         console.error("Failed to delete document:", error);
       }
+    }
+  };
+
+  const handleMoveToFolder = async () => {
+    if (document && selectedFolderId) {
+      await moveDocument({ documentId: document._id, folderId: selectedFolderId });
+      setIsMoveToFolderOpen(false);
     }
   };
 
@@ -157,6 +173,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             size="sm"
             className="w-full justify-start gap-2 h-9"
             title="ย้ายไปโฟลเดอร์"
+           onClick={() => setIsMoveToFolderOpen(true)}
           >
             <FolderOpen className="h-4 w-4" />
             <span className="hidden sm:inline">ย้าย</span>
@@ -261,6 +278,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             <div className="text-center text-slate-400 dark:text-slate-500">
               {generateDownloadUrl && (
                 <embed src={generateDownloadUrl} type={document.mimeType} width="100%" height="100%" />
+                
               )}
             </div>
           </div>
@@ -272,6 +290,30 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
         onClose={() => setIsShareModalOpen(false)}
         documentId={document._id}
       />
+     <Dialog open={isMoveToFolderOpen} onOpenChange={setIsMoveToFolderOpen}>
+       <DialogContent>
+         <DialogHeader>
+           <DialogTitle>ย้ายไปยังโฟล์เดอร์</DialogTitle>
+         </DialogHeader>
+         <div className="grid gap-4 py-4">
+           <Label>โปรดเลือกโฟล์เดอร์:</Label>
+           <RadioGroup onValueChange={(value) => setSelectedFolderId(value as Id<"folders">)}>
+             {folders?.map(folder => (
+               <div key={folder._id} className="flex items-center space-x-2">
+                 <RadioGroupItem value={folder._id} id={folder._id} />
+                 <Label htmlFor={folder._id}>{folder.name}</Label>
+               </div>
+             ))}
+           </RadioGroup>
+         </div>
+         <DialogFooter>
+           <DialogClose asChild>
+             <Button variant="outline">ยกเลิก</Button>
+           </DialogClose>
+           <Button onClick={handleMoveToFolder} disabled={!selectedFolderId}>ยืนยัน</Button>
+         </DialogFooter>
+       </DialogContent>
+     </Dialog>
     </aside>
   );
 };

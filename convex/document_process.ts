@@ -3,8 +3,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, internalQuery } from "./_generated/server";
 import { pdfToText } from "pdf-ts";
+import mammoth from "mammoth";
+import * as XLSX from "xlsx";
+import { Buffer } from "node:buffer";
 
 if (!process.env.GOOGLE_API_KEY) {
     throw Error("no api key")
@@ -19,22 +22,21 @@ export const generateAiShareSuggestions = action({
 
         try {
 
-            const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY }); // Using @google/genai
-
-            // 1. Fetch document details
+            const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY })
             const document = await ctx.runQuery(internal.document._getInternalDocumentDetails, { documentId: args.documentId });
 
             if (!document) {
                 throw new Error("Document not found.");
             }
-
+            if (document.classified) {
+                return []
+            }
             const documentUrl = await ctx.storage.getUrl(document.fileId);
 
             if (!documentUrl) {
                 throw new Error("Could not get document URL.");
             }
-            // 2. Fetch all users
-            // The `getAllUsers` query now returns departmentId as well.
+
             const allUsers: {
                 _id: Id<"users">;
                 name?: string;
@@ -46,7 +48,6 @@ export const generateAiShareSuggestions = action({
                 };
             }[] = await ctx.runQuery(api.users.getAllUsers, {});
 
-            // 3. Craft the prompt
             const userListString = allUsers
                 .map(user => {
                     let userInfo = `- User ID: ${user._id}, Name: ${user.name || "N/A"}, Email: ${user.email}`;
@@ -59,37 +60,67 @@ export const generateAiShareSuggestions = action({
                     return userInfo;
                 })
                 .join("\n");
+            const fileContent = await ctx.runAction(internal.document_process.getBlobContent, {
+                fileId: document.fileId,
+            });
 
-            const promptString = `
+            let contents: (string | { inlineData: { mimeType: string; data: string } })[] = [];
+            let promptText: string;
+
+            if (fileContent.type === "text") {
+                promptText = `
         Analyze the following document (title and content) and the list of available users.
         Your goal is to suggest a list of User IDs who would be most relevant to share this document with.
         Consider the document's topic, keywords, and purpose.
         Consider the users' names, emails, and department IDs (if available) to infer their roles or areas of interest.
         The document owner (User ID: ${document.ownerId}) should NOT be included in the suggestions.
-
-        Return your suggestions ONLY as a JSON array of strings, where each string is a User ID.
-        For example: ["userId1", "userId2", "userId3"]
+ 
         If no users are deemed relevant, or if the user list is empty (excluding the owner), return an empty array [].
         Do not include any other text, explanations, or markdown formatting around the JSON array.
-
+ 
         Document Title: ${document.name}
-
-        Document Content: ${documentUrl}
-
+ 
+        Document Content:
+        ${fileContent.content ? fileContent.content : "no data"}
+ 
         Available users:
         ${userListString}
-
+ 
         Based on the document and user profiles, provide a JSON array of User IDs to share with:
             `;
-            console.log(promptString)
-            // 4. Call Google AI API (using @google/genai syntax)
-            const modelName = "gemini-2.0-flash"; // Or "gemini-pro"
+                contents.push(promptText);
+            } else { // type === "image"
+                contents.push({
+                    inlineData: {
+                        mimeType: fileContent.mimeType,
+                        data: fileContent.content,
+                    },
+                });
+                promptText = `
+        Analyze the following document (title) and the list of available users.
+        Your goal is to suggest a list of User IDs who would be most relevant to share this document with.
+        Consider the document's topic, keywords, and purpose.
+        Consider the users' names, emails, and department IDs (if available) to infer their roles or areas of interest.
+        The document owner (User ID: ${document.ownerId}) should NOT be included in the suggestions.
+ 
+        If no users are deemed relevant, or if the user list is empty (excluding the owner), return an empty array [].
+        Do not include any other text, explanations, or markdown formatting around the JSON array.
+ 
+        Document Title: ${document.name}
+ 
+        Available users:
+        ${userListString}
+ 
+        Based on the document and user profiles, provide a JSON array of User IDs to share with:
+            `;
+                contents.push(promptText);
+            }
+
+            console.log(promptText);
+            const modelName = "gemini-2.5-flash";
             const generationResult = await ai.models.generateContent({
                 model: modelName,
-                contents: promptString, // Pass the crafted prompt string directly
-                // generationConfig and safetySettings can be added here if needed,
-                // similar to how @google/generative-ai structures them, if @google/genai supports them.
-                // For simplicity, keeping it minimal like the `processDocument` example.
+                contents: contents,
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -103,13 +134,10 @@ export const generateAiShareSuggestions = action({
 
             const aiResponseText = generationResult.text;
 
-            // 5. Parse AI Response
             if (typeof aiResponseText !== 'string') {
                 console.error("AI response text is undefined or not a string. No suggestions will be made.");
             } else {
                 try {
-                    // Attempt to extract JSON array from the response.
-                    // AI might sometimes include markdown ```json ... ``` or other text.
                     const jsonMatch = aiResponseText.match(/\[[^\]]*\]/);
                     let parsedIds: any[] = [];
 
@@ -132,18 +160,16 @@ export const generateAiShareSuggestions = action({
                     console.error("Failed to parse AI JSON response:", parseError, "Response text:", aiResponseText);
                 }
             }
-        } catch (error: any) { // Catch for the main try block (API call, fetching users/doc etc.)
+        } catch (error: any) {
             console.error("Error generating AI share suggestions:", error.message, error.stack);
-            // Fallback to empty suggestions in case of any error during the AI call process
             suggestedUserIds = [];
         }
 
-        // 6. Update the document with these suggestions (even if empty due to errors)
         await ctx.runMutation(internal.document.updateAiSuggestions, {
             documentId: args.documentId,
             suggestedUserIds: suggestedUserIds,
         });
-        
+
         return suggestedUserIds;
     },
 });
@@ -155,58 +181,93 @@ export const processDocument = internalAction({
     returns: v.null(),
     handler: async (ctx, args) => {
         let categories: string[] | null = null;
-        let errorMsg: string | null = null; // Renamed to avoid conflict
+        let errorMsg: string | null = null;
         let status: "completed" | "failed" = "completed";
-
         try {
             const document = await ctx.runQuery(internal.document._getInternalDocumentDetails, { documentId: args.documentId });
-
             if (!document) {
                 throw new Error("Document not found.");
             }
-
+            if (document.classified) {
+                await ctx.runMutation(internal.document_crud.updateDocumentCategoriesAndStatus, {
+                    documentId: args.documentId,
+                    categories: null,
+                    status: "completed",
+                    error: null,
+                });
+                return null;
+            }
             const documentUrl = await ctx.storage.getUrl(document.fileId);
-
             if (!documentUrl) {
                 throw new Error("Could not get document URL.");
             }
-            const pdf_text = await ctx.runAction(internal.document_process.getBlobContent, {
-  fileId: document.fileId,
-});
-            const prompt = [{
-                text: `
-**เป้าหมาย:**
-วิเคราะห์และจัดหมวดหมู่เอกสารจาก URL ที่ให้มา โดยระบุประเภทเอกสารที่เจาะจงและแม่นยำที่สุด
+            const fileContent = await ctx.runAction(internal.document_process.getBlobContent, {
+                fileId: document.fileId,
+            });
 
-**คำแนะนำ:**
-คุณต้องพิจารณาเนื้อหา โครงสร้าง และวัตถุประสงค์ของเอกสารเพื่อกำหนดหมวดหมู่ที่เหมาะสมที่สุด รายการด้านล่างเป็นเพียงตัวอย่างเพื่อเป็นแนวทางเท่านั้น และคุณไม่ควรถูกจำกัดด้วยรายการนี้
+            let promptContents: (string | { inlineData: { mimeType: string; data: string } })[] = [];
+            let promptTextForDocProcess: string;
 
-**หมวดหมู่ตัวอย่าง (เพื่อเป็นแนวทางเท่านั้น):**
-- "ข่าวประชาสัมพันธ์" (Press Release)
-- "รายงานทั่วไป" (General Report)
-- "สัญญา / ข้อตกลง" (Contract / Agreement)
-- "นโยบาย" (Policy)
-- "งบการเงิน" (Financial Statement)
-- "เอกสารทางกฎหมาย" (Legal Document)
-- "บทความ / บล็อก" (Article / Blog Post)
-- "เอกสารทางการตลาด" (Marketing Material)
+            if (fileContent.type === "text") {
+                promptTextForDocProcess = `
+            **เป้าหมาย:**
+            วิเคราะห์และจัดหมวดหมู่เอกสารจาก URL ที่ให้มา โดยระบุประเภทเอกสารที่เจาะจงและแม่นยำที่สุด
+            **คำแนะนำ:**
+            คุณต้องพิจารณาเนื้อหา โครงสร้าง และวัตถุประสงค์ของเอกสารเพื่อกำหนดหมวดหมู่ที่เหมาะสมที่สุด รายการด้านล่างเป็นเพียงตัวอย่างเพื่อเป็นแนวทางเท่านั้น และคุณไม่ควรถูกจำกัดด้วยรายการนี้
+            **หมวดหมู่ตัวอย่าง (เพื่อเป็นแนวทางเท่านั้น):**
+            - "ข่าวประชาสัมพันธ์" (Press Release)
+            - "รายงานทั่วไป" (General Report)
+            - "สัญญา / ข้อตกลง" (Contract / Agreement)
+            - "นโยบาย" (Policy)
+            - "งบการเงิน" (Financial Statement)
+            - "เอกสารทางกฎหมาย" (Legal Document)
+            - "บทความ / บล็อก" (Article / Blog Post)
+            - "เอกสารทางการตลาด" (Marketing Material)
+            **คำสั่งในการปฏิบัติ:**
+            1.  ตรวจสอบเนื้อหาของเอกสารที่ URL
+            2.  หากเอกสารตรงกับหนึ่งในตัวอย่าง ให้ใช้หมวดหมู่นั้น
+            3.  **หากไม่มีตัวอย่างใดที่เหมาะสมอย่างยิ่ง ให้สร้างหมวดหมู่ใหม่ที่อธิบายเอกสารได้ดีที่สุด** อย่าพยายามจัดเอกสารให้อยู่ในหมวดหมู่ที่ไม่เหมาะสม
+            ส่งออกเป็นภาษาไทยเท่านั้น ย้ำว่าภาษาไทยเท่านั้น
+            **เอกสารจาก URL:**
+            ${documentUrl}
+            **เนื้อหา**
+            ${fileContent.content ? fileContent.content : "no text found"}
+            `;
+                promptContents.push(promptTextForDocProcess);
+            } else { // type === "image"
+                promptContents.push({
+                    inlineData: {
+                        mimeType: fileContent.mimeType,
+                        data: fileContent.content,
+                    },
+                });
+                promptTextForDocProcess = `
+            **เป้าหมาย:**
+            วิเคราะห์และจัดหมวดหมู่เอกสารจากรูปภาพที่ให้มา โดยระบุประเภทเอกสารที่เจาะจงและแม่นยำที่สุด
+            **คำแนะนำ:**
+            คุณต้องพิจารณาเนื้อหา โครงสร้าง และวัตถุประสงค์ของเอกสารเพื่อกำหนดหมวดหมู่ที่เหมาะสมที่สุด รายการด้านล่างเป็นเพียงตัวอย่างเพื่อเป็นแนวทางเท่านั้น และคุณไม่ควรถูกจำกัดด้วยรายการนี้
+            **หมวดหมู่ตัวอย่าง (เพื่อเป็นแนวทางเท่านั้น):**
+            - "ข่าวประชาสัมพันธ์" (Press Release)
+            - "รายงานทั่วไป" (General Report)
+            - "สัญญา / ข้อตกลง" (Contract / Agreement)
+            - "นโยบาย" (Policy)
+            - "งบการเงิน" (Financial Statement)
+            - "เอกสารทางกฎหมาย" (Legal Document)
+            - "บทความ / บล็อก" (Article / Blog Post)
+            - "เอกสารทางการตลาด" (Marketing Material)
+            **คำสั่งในการปฏิบัติ:**
+            1.  ตรวจสอบเนื้อหาของเอกสารจากรูปภาพ
+            2.  หากเอกสารตรงกับหนึ่งในตัวอย่าง ให้ใช้หมวดหมู่นั้น
+            3.  **หากไม่มีตัวอย่างใดที่เหมาะสมอย่างยิ่ง ให้สร้างหมวดหมู่ใหม่ที่อธิบายเอกสารได้ดีที่สุด** อย่าพยายามจัดเอกสารให้อยู่ในหมวดหมู่ที่ไม่เหมาะสม
+            ส่งออกเป็นภาษาไทยเท่านั้น ย้ำว่าภาษาไทยเท่านั้น
+            `;
+                promptContents.push(promptTextForDocProcess);
+            }
 
-**คำสั่งในการปฏิบัติ:**
-1.  ตรวจสอบเนื้อหาของเอกสารที่ URL
-2.  หากเอกสารตรงกับหนึ่งในตัวอย่าง ให้ใช้หมวดหมู่นั้น
-3.  **หากไม่มีตัวอย่างใดที่เหมาะสมอย่างยิ่ง ให้สร้างหมวดหมู่ใหม่ที่อธิบายเอกสารได้ดีที่สุด** อย่าพยายามจัดเอกสารให้อยู่ในหมวดหมู่ที่ไม่เหมาะสม
-
-**เอกสารจาก URL:**
-${documentUrl}
-
-**เนื้อหา**
-${pdf_text ? pdf_text : "no text found"}
-`
-            }];
             const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
             const result = await ai.models.generateContent({
-                model: "gemini-2.0-flash",
-                contents: prompt,
+                model: "gemini-2.5-flash",
+                contents: promptContents,
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -216,15 +277,14 @@ ${pdf_text ? pdf_text : "no text found"}
                         },
                     },
                 },
-            })
-            console.log(prompt);
+            });
+            console.log(promptTextForDocProcess);
             const responseText = result.text;
-            
 
-            // Nested try-catch for parsing, specific to this block
+            console.log("resp", responseText)
             try {
-                if (typeof responseText !== 'string') {
-                    throw new Error(`AI response was not a string. Response: ${responseText}`);
+                if (typeof responseText !== 'string' || !responseText) {
+                    throw new Error(`AI response was not a string or was empty. Response: ${responseText}`);
                 }
                 const parsedCategories = JSON.parse(responseText);
                 if (!Array.isArray(parsedCategories) || !parsedCategories.every(cat => typeof cat === 'string')) {
@@ -232,13 +292,11 @@ ${pdf_text ? pdf_text : "no text found"}
                 }
                 categories = parsedCategories;
             } catch (parseError: any) {
-                // This catch is for parsing errors specifically
                 console.error("Failed to parse AI response:", parseError);
-                status = "failed"; // Mark as failed due to parsing error
+                status = "failed";
                 errorMsg = `Failed to parse AI response: ${parseError.message} - Response: ${responseText}`;
             }
-
-        } catch (e: any) { // This is the outer catch for general errors (network, document not found, etc.)
+        } catch (e: any) {
             console.error("Error processing document:", e);
             status = "failed";
             errorMsg = e.message;
@@ -254,25 +312,55 @@ ${pdf_text ? pdf_text : "no text found"}
     },
 });
 export const getBlobContent = internalAction({
-  args: {
-    fileId: v.id("_storage"),
-  },
-  handler: async (ctx, args) => {
-    const file = await ctx.storage.get(args.fileId);
-    if (!file) {
-      throw new Error("File not found in storage");
-    }
+    args: {
+        fileId: v.id("_storage"),
+    },
+    returns: v.union(
+        v.object({ type: v.literal("text"), content: v.string() }),
+        v.object({ type: v.literal("image"), content: v.string(), mimeType: v.string() }),
+    ),
+    handler: async (ctx, args): Promise<{ type: "text"; content: string; } | { type: "image"; content: string; mimeType: string; }> => {
+        const file = await ctx.storage.get(args.fileId);
+        if (!file) {
+            throw new Error("File not found in storage");
+        }
 
-    // pdf-ts works directly with an ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8buff = new Uint8Array(arrayBuffer)
+        const metadata = await ctx.runQuery(internal.document._getFileMetadata, { fileId: args.fileId });
+        if (!metadata || !metadata.contentType) {
+            throw new Error("File metadata or content type not found");
+        }
+        const contentType = metadata.contentType;
 
-    // Load the PDF document from the ArrayBuffer
-    const texts = await pdfToText(uint8buff);
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8buff = new Uint8Array(arrayBuffer);
 
-    
-
-    // Join the text from all pages
-    return texts
-  },
+        switch (contentType) {
+            case "application/pdf": {
+                const texts = await pdfToText(uint8buff);
+                return { type: "text", content: texts };
+            }
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                const { value: text } = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                return { type: "text", content: text };
+            }
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                const workbook = XLSX.read(uint8buff, { type: "array" });
+                let fullText = "";
+                workbook.SheetNames.forEach((sheetName) => {
+                    const sheet = workbook.Sheets[sheetName];
+                    fullText += XLSX.utils.sheet_to_txt(sheet);
+                });
+                return { type: "text", content: fullText };
+            }
+            case "application/vnd.ms-excel":
+                return { type: "text", content: "nooooo" };
+            case "image/jpeg":
+            case "image/png": {
+                const base64 = Buffer.from(uint8buff).toString("base64");
+                return { type: "image" as const, content: base64, mimeType: contentType };
+            }
+            default:
+                throw new Error(`Unsupported content type: ${contentType}`);
+        }
+    },
 });

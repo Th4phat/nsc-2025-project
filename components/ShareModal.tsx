@@ -156,7 +156,7 @@ const UserSuggestionItem = React.memo(
         <span className="text-sm font-medium truncate max-w-[160px]">
           {user.name || "Unnamed User"}
         </span>
-        <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+        <span className="text-xs truncate max-w-[160px]">
           {user.email}
         </span>
       </div>
@@ -173,10 +173,10 @@ const AiSuggestionSection = React.memo(
             htmlFor="generate-ai-suggestions"
             className="text-sm font-medium"
           >
-            AI Sharing Suggestions
+            แนะนำผู้รับโดย AI
           </Label>
           <p className="text-xs text-muted-foreground">
-            Let AI suggest recipients based on document content.
+            ให้ AI เป็นคนเลือกผู้รับเอกสารให้คุณสิ!
           </p>
         </div>
         <Button
@@ -189,12 +189,12 @@ const AiSuggestionSection = React.memo(
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
+              กำลังทำงาน...
             </>
           ) : (
             <>
               <Sparkles className="mr-2 h-4 w-4" />
-              Generate
+              เลือกผู้รับ
             </>
           )}
         </Button>
@@ -523,10 +523,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sharing...
+                  กำลังแชร์...
                 </>
               ) : (
-                "Share"
+                "แชร์"
               )}
             </Button>
           </div>

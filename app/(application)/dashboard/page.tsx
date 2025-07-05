@@ -1,22 +1,18 @@
 // app/your-route/page.tsx
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   FileText,
   FileSpreadsheet,
   FileImage,
   type LucideIcon,
   Search,
-  UploadCloud,
   CheckCircle,
   Inbox,
   X,
-  Upload,
-  Plus,
 } from "lucide-react";
 import RightSidebar from "@/components/RightSidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { UploadModal } from "@/components/UploadModal";
 import {
   SidebarProvider,
   SidebarInset,
@@ -34,56 +30,69 @@ import { formatRelative } from "date-fns";
 import { th } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
 
+const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = {
+  "application/pdf": {
+    icon: FileText,
+    colorClass: "text-red-500 dark:text-red-400",
+  },
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+    icon: FileSpreadsheet,
+    colorClass: "text-blue-500 dark:text-blue-400",
+  },
+  "image/png": {
+    icon: FileImage,
+    colorClass: "text-green-500 dark:text-green-400",
+  },
+  "image/jpeg": {
+    icon: FileImage,
+    colorClass: "text-green-500 dark:text-green-400",
+  },
+};
+
 export default function Page() {
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode");
+
   const [selectedDocument, setSelectedDocument] =
     useState<Doc<"documents"> | null>(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
 
-  const documents = useQuery(api.document.getAllDocuments, {
-    // folderId: folderId ?? undefined,
-    // category: category ?? undefined,
-  });
-  const filteredDocuments = documents?.filter((document) =>
-    document.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const documents = useQuery(
+    mode === "own"
+      ? api.document.listOwnedDocuments
+      : mode === "shared"
+      ? api.document_sharing.listSharedDocuments
+      : api.document.getAllDocuments,
+    {
+      // folderId: folderId ?? undefined,
+      // category: category ?? undefined,
+    },
   );
+  const filteredDocuments = useMemo(() => {
+    return documents?.filter((document) =>
+      document.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [documents, searchTerm]);
+  console.log(filteredDocuments)
   const unreadDocuments = useQuery(api.document_sharing.getUnreadDocuments);
-  const unreadDocumentIds = new Set(unreadDocuments ?? []);
+  const unreadDocumentIds = useMemo(() => {
+    return new Set(unreadDocuments ?? []);
+  }, [unreadDocuments]);
 
   const markDocumentAsRead = useMutation(
     api.document_sharing.markDocumentAsRead,
   );
 
 
-  const handleDocumentClick = (document: Doc<"documents">) => {
+  const handleDocumentClick = useCallback((document: Doc<"documents">) => {
     if (selectedDocument?._id === document._id) {
       setSelectedDocument(null);
     } else {
       setSelectedDocument(document);
       markDocumentAsRead({ documentId: document._id });
     }
-  };
-
-  const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = {
-    "application/pdf": {
-      icon: FileText,
-      colorClass: "text-red-500 dark:text-red-400",
-    },
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-      icon: FileSpreadsheet,
-      colorClass: "text-blue-500 dark:text-blue-400",
-    },
-    "image/png": {
-      icon: FileImage,
-      colorClass: "text-green-500 dark:text-green-400",
-    },
-    "image/jpeg": {
-      icon: FileImage,
-      colorClass: "text-green-500 dark:text-green-400",
-    },
-  };
-
+  }, [selectedDocument, markDocumentAsRead]);
 
   return (
     <SidebarProvider>
@@ -95,17 +104,6 @@ export default function Page() {
             <Separator orientation="vertical" className="mx-2 h-6" />
             
             {/* Upload Button */}
-            <Button onClick={() => setIsUploadModalOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              อัพโหลดเอกสาร
-            </Button>
-            
-            <UploadModal
-              isOpen={isUploadModalOpen}
-              onClose={() => setIsUploadModalOpen(false)}
-            />
-            {/* Temporary Seed Buttons */}
-            
             <div className="relative w-full max-w-md">
               <Label htmlFor="search" className="sr-only">
                 ค้นหาเอกสารด้วยคำสำคัญ

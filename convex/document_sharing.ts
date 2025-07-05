@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { mutationWithAuth } from "./auth";
 import { internal } from "./_generated/api";
 
@@ -483,5 +484,59 @@ export const sendDocumentToCompany = mutationWithAuth([
         });
 
         return null;
+    },
+});
+
+export const listSharedDocuments = query({
+    args: {},
+    returns: v.array(
+        v.object({
+            _id: v.id("documents"),
+            _creationTime: v.number(),
+            ownerId: v.id("users"),
+            name: v.string(),
+            description: v.optional(v.string()),
+            fileId: v.id("_storage"),
+            mimeType: v.string(),
+            fileSize: v.number(),
+            status: v.union(
+                v.literal("uploading"),
+                v.literal("processing"),
+                v.literal("completed"),
+                v.literal("failed"),
+                v.literal("trashed")
+            ),
+            aiCategories: v.optional(v.array(v.string())),
+            aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
+            aiProcessingError: v.optional(v.string()),
+            classified: v.optional(v.boolean()),
+            sharerId: v.id("users"),
+        })
+    ),
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            return [];
+        }
+
+        const sharedDocumentShares = await ctx.db
+            .query("documentShares")
+            .withIndex("by_recipientId", (q) =>
+                q.eq("recipientId", userId)
+            )
+            .collect();
+
+        const sharedDocuments = [];
+        for (const share of sharedDocumentShares) {
+            const document = await ctx.db.get(share.documentId);
+            if (document) {
+                sharedDocuments.push({
+                    ...document,
+                    sharerId: share.sharerId,
+                });
+            }
+        }
+
+        return sharedDocuments;
     },
 });

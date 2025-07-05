@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Archive,
   Files,
@@ -31,47 +32,45 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "./ui/label";
 import { NavProjects } from "./nav-projects";
 
-const data = {
-  user: {
-    name: "นายช่วยเหลือ วาดภาพ",
-    email: "m@cooperate.com",
-    avatar: "/avatars/placeholder.jpg",
-  },
-
-  projects: [
-    {
-      name: "เอกสารทั้งหมด",
-      url: "/dashboard",
-      icon: Archive,
-      isActive: true,
-    },
-    {
-      name: "แชร์ให้แล้ว",
-      url: "/share",
-      icon: Share2,
-    },
-    {
-      name: "เอกสารฉัน",
-      url: "#",
-      icon: Files,
-    },
-    {
-      name: "ถังขยะ",
-      url: "#",
-      icon: Trash2,
-    },
-  ],
-};
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const user = useQuery(api.users.getCurrentUser);
   const permissions = useQuery(api.users.getPermissionsByUserId);
-  console.log("perm",permissions)
   const aiCategories = useQuery(api.document.getUniqueAiCategories); // Fetch unique AI categories
   const folders = useQuery(api.folders.getFolders, {}); // Fetch folders
   const documents = useQuery(api.document.getDocumentsInAllFolders, {}); // Fetch all documents in folders
   const createFolder = useMutation(api.folders.createFolder); // Mutation to create folders
 
+  const data = {
+    user: {
+      name: "นายช่วยเหลือ วาดภาพ",
+      email: "m@cooperate.com",
+      avatar: "/avatars/placeholder.jpg",
+    },
+
+    projects: [
+      {
+        name: "เอกสารทั้งหมด",
+        url: "/dashboard",
+        icon: Archive,
+        isActive: pathname === "/dashboard" && !searchParams.get("mode") && !searchParams.get("documentId") && !searchParams.get("folderId") && !searchParams.get("category"),
+      },
+      {
+        name: "แชร์ให้ฉัน",
+        url: "/dashboard?mode=shared",
+        icon: Share2,
+        isActive: pathname === "/dashboard" && searchParams.get("mode") === "shared",
+      },
+      {
+        name: "เอกสารฉัน",
+        url: "/dashboard?mode=own",
+        icon: Files,
+        isActive: pathname === "/dashboard" && searchParams.get("mode") === "own",
+      },
+    ],
+  };
   const [newFolderName, setNewFolderName] = useState("");
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false);
 

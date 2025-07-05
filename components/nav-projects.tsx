@@ -21,19 +21,20 @@ export function NavProjects({
     name: string;
     url: string;
     icon: LucideIcon;
+    isActive?: boolean; // Add isActive to the type definition
   }[];
   label: string;
 }) {
   useSidebar();
-  const pathname = usePathname(); // Get the current pathname
+  // Remove usePathname as it's no longer needed for isActive calculation here
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarMenu>
         {projects.map((item) => {
-          // Check if the item's URL matches the current pathname
-          const isActive = pathname === item.url;
+          // Use the isActive prop directly
+          const isActive = item.isActive;
 
           return (
             <SidebarMenuItem key={item.name}>

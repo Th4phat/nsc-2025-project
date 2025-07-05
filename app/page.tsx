@@ -42,14 +42,11 @@ export default function DocumentUploader() {
 
   return (
     <div>
-      <input
-        type="file"
-        onChange={handleUpload}
-        disabled={isUploading}
-      />
-      {isUploading && <p>Uploading...</p>}
-
-      {/* <DocumentList /> */}
+      <h1>Temporary page 4 some reason</h1>
+      <a href="/dashboard">dashboard</a>
+      <a href="/server">dashboard</a>
+      <a href="/client">dashboard</a>
     </div>
+    
   );
 }

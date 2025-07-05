@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Inbox,
   X,
+  Upload,
 } from "lucide-react";
 import RightSidebar from "@/components/RightSidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -29,6 +30,7 @@ import { Doc, Id } from "../../../convex/_generated/dataModel";
 import { formatRelative } from "date-fns";
 import { th } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
+import { UploadModal } from "@/components/UploadModal";
 
 const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = {
   "application/pdf": {
@@ -52,7 +54,7 @@ const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = 
 export default function Page() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
-
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] =
     useState<Doc<"documents"> | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -104,6 +106,15 @@ export default function Page() {
             <Separator orientation="vertical" className="mx-2 h-6" />
             
             {/* Upload Button */}
+            <Button onClick={() => setIsUploadModalOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              อัพโหลดเอกสาร
+            </Button>
+
+            <UploadModal
+              isOpen={isUploadModalOpen}
+              onClose={() => setIsUploadModalOpen(false)}
+            />
             <div className="relative w-full max-w-md">
               <Label htmlFor="search" className="sr-only">
                 ค้นหาเอกสารด้วยคำสำคัญ

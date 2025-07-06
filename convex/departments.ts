@@ -33,11 +33,38 @@ export const listDepartments = query({
   returns: v.array(
     v.object({
       _id: v.id("departments"),
+      _creationTime: v.number(),
       name: v.string(),
       description: v.optional(v.string()),
+      status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
     }),
   ),
   handler: async (ctx) => {
     return await ctx.db.query("departments").collect();
+  },
+});
+
+export const getDepartmentsByIds = query({
+  args: {
+    departmentIds: v.array(v.id("departments")),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("departments"),
+      _creationTime: v.number(),
+      name: v.string(),
+      description: v.optional(v.string()),
+      status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const departments = [];
+    for (const id of args.departmentIds) {
+      const department = await ctx.db.get(id);
+      if (department) {
+        departments.push(department);
+      }
+    }
+    return departments;
   },
 });

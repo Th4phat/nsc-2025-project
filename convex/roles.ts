@@ -66,6 +66,7 @@ export const listRoles = query({
       name: v.string(),
       rank: v.number(),
       permissions: v.array(v.string()),
+      _creationTime: v.number()
     }),
   ),
   handler: async (ctx) => {

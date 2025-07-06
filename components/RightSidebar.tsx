@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, Component, ErrorInfo, ReactNode } from "react";
 import { ShareModal } from "@/components/ShareModal";
+import { DocModal } from "@/components/DocumentModal";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -85,6 +86,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isMoveToFolderOpen, setIsMoveToFolderOpen] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<Id<"folders"> | null>(null);
+  const [previewDocumentId, setPreviewDocumentId] = useState<Id<"documents"> | undefined>(undefined);
 
   const folders = useQuery(api.folders.getFolders, {});
   const moveDocument = useMutation(api.document.moveDocument);
@@ -168,6 +170,16 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               <span className="hidden sm:inline">แก้ไข</span>
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 h-9"
+            title="ดูตัวอย่าง"
+            onClick={() => setPreviewDocumentId(document._id)}
+          >
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline">ดูตัวอย่าง</span>
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -277,7 +289,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
           <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg h-48 lg:h-64 flex items-center justify-center">
             <div className="text-center text-slate-400 dark:text-slate-500">
               {generateDownloadUrl && (
-                <embed src={generateDownloadUrl} type={document.mimeType} width="100%" height="100%" />
+                <iframe src={generateDownloadUrl} width="100%" height="100%"/>
                 
               )}
             </div>
@@ -314,6 +326,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
          </DialogFooter>
        </DialogContent>
      </Dialog>
+     <DocModal docId={previewDocumentId} />
     </aside>
   );
 };

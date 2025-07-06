@@ -1,5 +1,5 @@
 import { Password } from "@convex-dev/auth/providers/Password";
-import { convexAuth } from "@convex-dev/auth/server";
+import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
 import {
   internalQuery,
   mutation,
@@ -24,15 +24,23 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 
 export const getUser = internalQuery({
   args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+  returns: v.union(v.object({
+    _id: v.id("users"),
+    _creationTime: v.number(),
+    email: v.string(),
+    name: v.optional(v.string()),
+    roleId: v.optional(v.id("roles")),
+    profileId: v.optional(v.id("profiles")),
+    departmentId: v.optional(v.id("departments")),
+    controlledDepartments: v.optional(v.array(v.id("departments"))),
+    status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
+  }), v.null()),
+  handler: async (ctx): Promise<Doc<"users"> | null> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       return null;
     }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
-      .unique();
+    const user = await ctx.db.get(userId);
     return user;
   },
 });
@@ -42,15 +50,22 @@ export const hasPermission = internalQuery({
   returns: v.boolean(),
   handler: async (ctx, { permission }): Promise<boolean> => {
     const user = await ctx.runQuery(internal.auth.getUser);
-    if (!user || !user.roleId) {
+    console.log("User in hasPermission:", user);
+    if (!user) {
+      console.log("no user found in hasPermission");
+      return false;
+    }
+    if (!user.roleId) {
+      console.log("User has no roleId:", user);
       return false;
     }
     const role = (await ctx.db.get(user.roleId)) as Doc<"roles"> | null;
     if (!role) {
+      console.log("no role")
       return false;
     }
-    // A role must have permissions defined.
     if (!role.permissions) {
+      console.log("no perm")
       return false;
     }
     return role.permissions.includes(permission);
@@ -64,6 +79,7 @@ const permissionCheck = (permissions: string[]) => {
         permission,
       });
       if (!hasPerm) {
+        
         throw new ConvexError("Unauthorized");
       }
     }

@@ -94,9 +94,7 @@ export default function Page() {
   }, [selectedDocument, markDocumentAsRead]);
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
+
         <div className="flex flex-col h-screen">
           <header className="flex sticky top-0 bg-background/95 backdrop-blur-sm z-10 h-16 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
@@ -216,7 +214,6 @@ export default function Page() {
             <RightSidebar document={selectedDocument} setSelectedDocument={setSelectedDocument} />
           </main>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+
   );
 }

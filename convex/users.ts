@@ -2,7 +2,7 @@ import { mutation, query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { mutationWithAuth, queryWithAuth, auth } from "./auth";
 
 export const getCurrentUserID = query({
@@ -37,6 +37,33 @@ export const getCurrentUser = query({
       email: user.email,
       name: user.name,
     };
+  },
+});
+
+export const getUserRoleAndControlledDepartments = query({
+  args: {},
+  returns: v.union(
+    v.object({
+      roleName: v.string(),
+      permissions: v.array(v.string()),
+      controlledDepartments: v.optional(v.array(v.id("departments"))),
+    }),
+    v.null()
+  ),
+  handler: async (ctx): Promise<{
+    roleName: string;
+    permissions: string[];
+    controlledDepartments?: Id<"departments">[];
+  } | null> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
+    const result = await ctx.runQuery(
+      internal.document_distribution.getUserRoleAndPermissions,
+      { userId }
+    );
+    return result;
   },
 });
 
@@ -108,6 +135,8 @@ export const getAllUsers = query({
           description: v.optional(v.string()),
         })
       ),
+      roleName: v.optional(v.string()),
+      bio: v.optional(v.string()),
     })
   ),
   handler: async (ctx) => {
@@ -115,12 +144,29 @@ export const getAllUsers = query({
     const users = await ctx.db.query("users").collect();
 
     // Fetch department details for users who have a departmentId
-    const usersWithDepartments = await Promise.all(
+    const usersWithDetails = await Promise.all(
       users.map(async (user) => {
         let department = undefined;
         if (user.departmentId) {
           department = await ctx.db.get(user.departmentId);
         }
+
+        let roleName = undefined;
+        if (user.roleId) {
+          const role = await ctx.db.get(user.roleId);
+          if (role) {
+            roleName = role.name;
+          }
+        }
+
+        let bio = undefined;
+        if (user.profileId) {
+          const profile = await ctx.db.get(user.profileId);
+          if (profile) {
+            bio = profile.bio;
+          }
+        }
+
         return {
           _id: user._id,
           name: user.name,
@@ -132,11 +178,13 @@ export const getAllUsers = query({
                 description: department.description,
               }
             : undefined,
+          roleName: roleName,
+          bio: bio,
         };
       })
     );
 
-    return usersWithDepartments;
+    return usersWithDetails;
   },
 });
 
@@ -181,24 +229,31 @@ export const listUsersForShare = query({
   },
 });
 
-export const getMyPermissions = queryWithAuth([])({
+export const getMyPermissions = query({
   args: {},
   returns: v.array(v.string()),
   handler: async (ctx): Promise<string[]> => {
-    const user: Doc<"users"> | null = await ctx.runQuery(internal.auth.getUser);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      console.log("no user id")
+      return [];
+    }
+    const user: Doc<"users"> | null = await ctx.db.get(userId);
     if (!user || !user.roleId) {
+      console.log("no user")
       return [];
     }
 
     const role: Doc<"roles"> | null = await ctx.db.get(user.roleId);
 
     if (!role) {
+      console.log("no role")
       return [];
     }
 
     return role.permissions || [];
   },
-});
+})
 
 export const getPermissionsByUserId = query({
   args: {},

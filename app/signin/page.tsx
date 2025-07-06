@@ -2,10 +2,12 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
+  const router = useRouter();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +23,11 @@ export default function SignIn() {
     formData.set("redirectTo", "/dashboard")
 
     try {
-      await signIn("password", formData)
+      await signIn("password", formData);
+      router.push("/dashboard");
     } catch (error: any) {
-      // setError(error.message || "An unexpected error occurred");
-      console.error(error)
+      setError(error.message || "An unexpected error occurred");
+      console.error(error);
     } finally {
       setIsLoading(false);
     }

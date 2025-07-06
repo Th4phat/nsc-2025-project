@@ -46,6 +46,8 @@ export const generateAiShareSuggestions = action({
                     name: string;
                     description?: string;
                 };
+                roleName?: string;
+                bio?: string;
             }[] = await ctx.runQuery(api.users.getAllUsers, {});
 
             const userListString = allUsers
@@ -56,6 +58,12 @@ export const generateAiShareSuggestions = action({
                         if (user.department.description) {
                             userInfo += ` (${user.department.description})`;
                         }
+                    }
+                    if (user.roleName) {
+                        userInfo += `, Role: ${user.roleName}`;
+                    }
+                    if (user.bio) {
+                        userInfo += `, Bio: ${user.bio}`;
                     }
                     return userInfo;
                 })
@@ -75,13 +83,12 @@ export const generateAiShareSuggestions = action({
         Consider the users' names, emails, and department IDs (if available) to infer their roles or areas of interest.
         The document owner (User ID: ${document.ownerId}) should NOT be included in the suggestions.
  
-        If no users are deemed relevant, or if the user list is empty (excluding the owner), return an empty array [].
-        Do not include any other text, explanations, or markdown formatting around the JSON array.
+        If no users are deemed relevant, or if the user list is empty (excluding the owner), return nothing.
  
         Document Title: ${document.name}
  
         Document Content:
-        ${fileContent.content ? fileContent.content : "no data"}
+        ${fileContent.content ? fileContent.content : "no data found"}
  
         Available users:
         ${userListString}
@@ -89,7 +96,7 @@ export const generateAiShareSuggestions = action({
         Based on the document and user profiles, provide a JSON array of User IDs to share with:
             `;
                 contents.push(promptText);
-            } else { // type === "image"
+            } else {
                 contents.push({
                     inlineData: {
                         mimeType: fileContent.mimeType,
@@ -240,7 +247,7 @@ export const processDocument = internalAction({
                         mimeType: fileContent.mimeType,
                         data: fileContent.content,
                     },
-                });
+                })
                 promptTextForDocProcess = `
             **เป้าหมาย:**
             วิเคราะห์และจัดหมวดหมู่เอกสารจากรูปภาพที่ให้มา โดยระบุประเภทเอกสารที่เจาะจงและแม่นยำที่สุด
@@ -355,10 +362,13 @@ export const getBlobContent = internalAction({
             case "application/vnd.ms-excel":
                 return { type: "text", content: "nooooo" };
             case "image/jpeg":
-            case "image/png": {
+                const b64data = Buffer.from(uint8buff).toString("base64");
+                return { type: "image" as const, content: b64data, mimeType: contentType };
+            
+            case "image/png": 
                 const base64 = Buffer.from(uint8buff).toString("base64");
                 return { type: "image" as const, content: base64, mimeType: contentType };
-            }
+            
             default:
                 throw new Error(`Unsupported content type: ${contentType}`);
         }

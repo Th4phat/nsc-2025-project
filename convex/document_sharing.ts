@@ -277,7 +277,7 @@ export const getUnreadDocuments = query({
 
         return unreadDocuments.map((status) => status.documentId);
     },
-});
+})
 
 export const getUnreadDocumentsWithDetails = query({
     args: {},

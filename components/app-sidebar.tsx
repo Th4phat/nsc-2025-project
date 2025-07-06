@@ -115,33 +115,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const adminNavItems = [
     {
       name: "ส่งเอกสารเหมารวมแผนก",
-      url: "/department-send",
+      url: "/send-across-dep",
       icon: Send,
-      hidden: !hasPermission("document:send:department"),
+      hidden: !(hasPermission("document:send:department") || hasPermission("document:send:company")),
     },
     {
       name: "ส่งเอกสารแบบเหมารวม",
-      url: "/company-send",
+      url: "/send-across-org",
       icon: Send,
       hidden: !hasPermission("document:send:company"),
     },
     {
       name: "จัดการผู้ใช้",
-      url: "/users",
+      url: "/manage-user",
       icon: Users,
       hidden: !hasPermission("user:update:any"),
     },
     {
       name: "ดูเหตุการณ์ของระบบ",
-      url: "/logs",
+      url: "/view-syslog",
       icon: FileText,
       hidden: !hasPermission("system:logs:read"),
     },
     {
       name: "ตั้งค่าระบบ",
-      url: "/settings",
+      url: "/sys-control",
       icon: Settings,
-      hidden: !hasPermission("system:settings:read"),
+      hidden: !(hasPermission("system:settings:read") || hasPermission("system:settings:update")),
     },
   ].filter(item => !item.hidden);
 

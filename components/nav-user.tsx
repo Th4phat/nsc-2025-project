@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/sidebar"
 import { signOut } from "@/convex/auth"
 import { useAuthActions } from "@convex-dev/auth/react"
-import router from "next/router"
 import Link from "next/link"
 
 export function NavUser({
@@ -46,6 +45,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const { signOut } = useAuthActions();
+  const router = useRouter();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -96,9 +96,12 @@ export function NavUser({
               </Link>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut()}>
+            <DropdownMenuItem onClick={async () => {
+              await signOut();
+              router.push("/signin");
+            }}>
               <LogOut />
-              Log out
+              ออกจากระบบ
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

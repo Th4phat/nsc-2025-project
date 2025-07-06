@@ -23,6 +23,7 @@ export default defineSchema({
     roleId: v.optional(v.id("roles")),
     profileId: v.optional(v.id("profiles")),
     departmentId: v.optional(v.id("departments")),
+    controlledDepartments: v.optional(v.array(v.id("departments"))),
     // NEW: Status for soft-deleting or archiving users.
     status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
   })
@@ -131,7 +132,14 @@ export default defineSchema({
   })
     .index("by_actorId", ["actorId"]) // Find all actions by a user
     .index("by_target", ["targetTable", "targetId"]), // Find the history of a specific item
-    numbers: defineTable({
+
+  distributedDocuments: defineTable({
+    documentId: v.id("documents"),
+    senderId: v.id("users"),
+    recipientDepartmentIds: v.optional(v.array(v.id("departments"))),
+    sentToAll: v.optional(v.boolean()),
+  }),
+  numbers: defineTable({
     value: v.number(),
     userId: v.id("users"),
   }).index("by_userId", ["userId"]),

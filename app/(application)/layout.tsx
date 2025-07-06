@@ -3,6 +3,8 @@ import { ApplicationLayout } from "./components/ApplicationLayout";
 import type { Metadata } from "next";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export const metadata: Metadata = {
   title: "แดชบอร์ด",
@@ -33,7 +35,15 @@ export default function DashboardLayout({
         >
           <ConvexClientProvider>
 
-              <ApplicationLayout>{children}</ApplicationLayout>
+              <ApplicationLayout>
+                <SidebarProvider>
+                  <AppSidebar />
+                  <SidebarInset>
+                    {children}
+                  </SidebarInset>
+                </SidebarProvider>
+                
+              </ApplicationLayout>
 
           </ConvexClientProvider>
         </div>

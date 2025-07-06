@@ -427,3 +427,60 @@ export const _getFileMetadata = internalQuery({
         return metadata;
     },
 });
+
+export const getDocumentAndUrl = query({
+    args: {
+        documentId: v.id("documents"),
+    },
+    returns: v.union(
+        v.null(),
+        v.object({
+            name: v.string(),
+            mimeType: v.string(),
+            uploaded: v.number(),
+            url: v.string(),
+        })
+    ),
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new Error("Authenticated user not found.");
+        }
+
+        const document = await ctx.db.get(args.documentId);
+        if (!document) {
+            return null;
+        }
+
+        // Check if the user is the owner
+        const isOwner = document.ownerId === userId;
+
+        // Check if the document is shared with the user and has view permissions
+        const share = await ctx.db
+            .query("documentShares")
+            .withIndex("by_document_recipient", (q) =>
+                q.eq("documentId", args.documentId).eq("recipientId", userId),
+            )
+            .unique();
+
+        const hasViewPermission = share?.permissionGranted.includes("view");
+
+        if (!isOwner && !hasViewPermission) {
+            // If not owner and no view permission, return null or throw an error
+            // For now, returning null to prevent unauthorized access
+            return null;
+        }
+
+        const url = await ctx.storage.getUrl(document.fileId);
+        if (!url) {
+            return null;
+        }
+
+        return {
+            name: document.name,
+            uploaded: document._creationTime,
+            mimeType: document.mimeType,
+            url: url,
+        };
+    },
+});

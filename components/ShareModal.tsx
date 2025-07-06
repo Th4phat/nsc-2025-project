@@ -30,6 +30,7 @@ import {
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
+import { ScrollArea } from "./ui/scroll-area";
 
 // --- TYPE DEFINITIONS ---
 type PermissionType =
@@ -449,6 +450,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             <div className="bg-gray-50 p-3 rounded-md">
               <p className="text-sm text-gray-500 mb-2">ผู้รับ:</p>
               <div className="flex flex-wrap gap-2">
+                <ScrollArea className="h-40 rounded-md whitespace-nowrap">
                 {selectedRecipientsWithPermissions.map(recipient => {
                   const user = availableUsers.find(
                     u => u._id === recipient.userId,
@@ -465,6 +467,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     />
                   );
                 })}
+                </ScrollArea>
               </div>
             </div>
           )}

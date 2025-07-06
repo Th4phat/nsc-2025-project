@@ -1,4 +1,3 @@
-// app/your-route/page.tsx
 "use client";
 import React, { useState, useCallback, useMemo } from "react";
 import {
@@ -7,7 +6,6 @@ import {
   FileImage,
   type LucideIcon,
   Search,
-  CheckCircle,
   Inbox,
   X,
   Upload,
@@ -26,20 +24,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Doc, Id } from "../../../convex/_generated/dataModel";
+import { Doc } from "../../../convex/_generated/dataModel";
 import { formatRelative } from "date-fns";
 import { th } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
 import { UploadModal } from "@/components/UploadModal";
+import { DocModal } from "@/components/DocumentModal";
 
 const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = {
   "application/pdf": {
     icon: FileText,
     colorClass: "text-red-500 dark:text-red-400",
-  },
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-    icon: FileSpreadsheet,
-    colorClass: "text-blue-500 dark:text-blue-400",
   },
   "image/png": {
     icon: FileImage,
@@ -54,12 +49,15 @@ const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = 
 export default function Page() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
+  const docid = searchParams.get("documentId");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] =
     useState<Doc<"documents"> | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-
+  if (docid) {
+    console.log(docid)
+  }
   const documents = useQuery(
     mode === "own"
       ? api.document.listOwnedDocuments
@@ -67,10 +65,9 @@ export default function Page() {
       ? api.document_sharing.listSharedDocuments
       : api.document.getAllDocuments,
     {
-      // folderId: folderId ?? undefined,
-      // category: category ?? undefined,
     },
-  );
+  )
+
   const filteredDocuments = useMemo(() => {
     return documents?.filter((document) =>
       document.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -104,13 +101,12 @@ export default function Page() {
           <header className="flex sticky top-0 bg-background/95 backdrop-blur-sm z-10 h-16 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mx-2 h-6" />
-            
-            {/* Upload Button */}
+
             <Button onClick={() => setIsUploadModalOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               อัพโหลดเอกสาร
             </Button>
-
+            {docid && <DocModal docId={docid} />}
             <UploadModal
               isOpen={isUploadModalOpen}
               onClose={() => setIsUploadModalOpen(false)}
@@ -153,9 +149,6 @@ export default function Page() {
                     <h3 className="mt-4 text-lg font-medium text-slate-800 dark:text-slate-200">
                       ไม่พบเอกสารที่ค้นหา
                     </h3>
-                    {/* <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 mb-4">
-                      คลิ๊กเพื่ออัปโหลด
-                    </p> */}
                   </div>
                 )}
                 {filteredDocuments?.map((document) => {

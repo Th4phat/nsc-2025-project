@@ -18,6 +18,7 @@ export default function SignIn() {
 
     const formData = new FormData(e.target as HTMLFormElement)
     formData.set("flow", flow)
+    formData.set("redirectTo", "/dashboard")
 
     try {
       await signIn("password", formData)

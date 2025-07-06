@@ -41,11 +41,9 @@ export default function DocumentUploader() {
   }
 
   return (
-    <div>
+    <div className="flex gap-5">
       <h1>Temporary page 4 some reason</h1>
-      <a href="/dashboard">dashboard</a>
-      <a href="/server">dashboard</a>
-      <a href="/client">dashboard</a>
+      <a href="/dashboard" className="underline">dashboard</a>
     </div>
     
   );

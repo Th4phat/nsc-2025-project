@@ -167,7 +167,7 @@ export const generateDownloadUrl = query({
 
         const document = await ctx.db.get(args.documentId);
         if (!document) {
-            throw new Error("Document not found.");
+            return null;
         }
 
         // Check if the user is the owner

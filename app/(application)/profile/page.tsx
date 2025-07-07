@@ -71,8 +71,8 @@ export default function ProfilePage() {
   // Show a loading state while fetching initial data
   if (userData === undefined) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        Loading profile...
+      <div className="flex items-center justify-center h-full">
+        <h1 className="text-2xl font-bold text-gray-500">Loading...</h1>
       </div>
     );
   }

@@ -9,11 +9,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface NotificationSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  closeBrowserNotification: (tag: string) => void;
 }
 
 const NotificationSidebar: React.FC<NotificationSidebarProps> = ({
   isOpen,
   onClose,
+  closeBrowserNotification,
 }) => {
   const unread = useQuery(api.document_sharing.getUnreadDocumentsWithDetails);
   const markAsRead = useMutation(api.document_sharing.markDocumentAsRead);
@@ -40,7 +42,12 @@ const NotificationSidebar: React.FC<NotificationSidebarProps> = ({
             <div
               key={doc._id}
               className="p-2 rounded-md hover:bg-gray-100 cursor-pointer"
-              onClick={() => markAsRead({ documentId: doc._id })}
+              onClick={async () => {
+                await markAsRead({ documentId: doc._id });
+                if (unread?.length === 1) {
+                  closeBrowserNotification("unread-documents");
+                }
+              }}
             >
               <p className="font-semibold">{doc.name}</p>
               <p className="text-sm text-gray-500">

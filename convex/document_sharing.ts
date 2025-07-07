@@ -540,3 +540,38 @@ export const listSharedDocuments = query({
         return sharedDocuments;
     },
 });
+
+export const getSharerForDocument = query({
+    args: {
+        documentId: v.id("documents"),
+    },
+    returns: v.union(
+        v.object({
+            _id: v.id("users"),
+            name: v.optional(v.string()),
+            email: v.string(),
+        }),
+        v.null()
+    ),
+    handler: async (ctx, args) => {
+        const share = await ctx.db
+            .query("documentShares")
+            .withIndex("by_documentId", (q) => q.eq("documentId", args.documentId))
+            .first();
+
+        if (!share) {
+            return null;
+        }
+
+        const sharer = await ctx.db.get(share.sharerId);
+        if (!sharer) {
+            return null;
+        }
+
+        return {
+            _id: sharer._id,
+            name: sharer.name,
+            email: sharer.email,
+        };
+    },
+});

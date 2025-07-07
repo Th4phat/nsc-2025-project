@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as audit_logs from "../audit_logs.js";
 import type * as auth from "../auth.js";
+import type * as department_management from "../department_management.js";
 import type * as departments from "../departments.js";
 import type * as document from "../document.js";
 import type * as document_crud from "../document_crud.js";
@@ -24,6 +25,7 @@ import type * as document_sharing from "../document_sharing.js";
 import type * as folders from "../folders.js";
 import type * as http from "../http.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as role_management from "../role_management.js";
 import type * as roles from "../roles.js";
 import type * as run_seed from "../run_seed.js";
 import type * as seed_users from "../seed_users.js";
@@ -41,6 +43,7 @@ import type * as users from "../users.js";
 declare const fullApi: ApiFromModules<{
   audit_logs: typeof audit_logs;
   auth: typeof auth;
+  department_management: typeof department_management;
   departments: typeof departments;
   document: typeof document;
   document_crud: typeof document_crud;
@@ -50,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   folders: typeof folders;
   http: typeof http;
   myFunctions: typeof myFunctions;
+  role_management: typeof role_management;
   roles: typeof roles;
   run_seed: typeof run_seed;
   seed_users: typeof seed_users;

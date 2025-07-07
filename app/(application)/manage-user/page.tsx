@@ -136,13 +136,15 @@ export default function ManageUserPage() {
     };
 
     if (permissions === undefined || users === undefined || departments === undefined || roles === undefined) {
-        return <div>Loading...</div>;
+        return <div className="flex items-center justify-center h-full">
+        <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
+      </div>
     }
 
     if (!permissions.includes("user:read:any")) {
         return (
             <div className="flex items-center justify-center h-screen text-red-500 text-xl">
-                Access Denied: You do not have permission to view this page.
+                ปฏิเสธการเข้าถึง: คุณไม่มีสิทธิ์ในการดูหน้านี้
             </div>
         );
     }
@@ -166,9 +168,9 @@ export default function ManageUserPage() {
                 */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-2xl font-bold">Manage Users</CardTitle>
+                        <CardTitle className="text-2xl font-bold">จัดการผู้ใช้</CardTitle>
                         <CardDescription>
-                            View, edit, and manage user roles and permissions.
+                            ดู แก้ไข และจัดการบทบาทและสิทธิ์ของผู้ใช้
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -179,11 +181,11 @@ export default function ManageUserPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[200px]">Name</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Department</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="w-[200px]">ชื่อ</TableHead>
+                                    <TableHead>อีเมล</TableHead>
+                                    <TableHead>แผนก</TableHead>
+                                    <TableHead>บทบาท</TableHead>
+                                    <TableHead className="text-right">การดำเนินการ</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -191,23 +193,23 @@ export default function ManageUserPage() {
                                     /* Change: The "No users" message is now part of the table body for a cleaner look. */
                                     <TableRow>
                                         <TableCell colSpan={5} className="h-24 text-center">
-                                            No users found.
+                                            ไม่พบผู้ใช้
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     users.map((user) => (
                                         <TableRow key={user._id}>
                                             <TableCell className="font-medium">
-                                                {user.name || "N/A"}
+                                                {user.name || "ไม่มี"}
                                             </TableCell>
                                             <TableCell>{user.email}</TableCell>
-                                            <TableCell>{user.departmentName || "N/A"}</TableCell>
-                                            <TableCell>{user.roleName || "N/A"}</TableCell>
+                                            <TableCell>{user.departmentName || "ไม่มี"}</TableCell>
+                                            <TableCell>{user.roleName || "ไม่มี"}</TableCell>
                                             <TableCell className="text-right">
                                                 {/* Change: Encapsulated actions in a div for potential future additions (e.g., a "Delete" button dropdown) */}
                                                 <div>
                                                     <Button onClick={() => handleEditClick(user)} size="sm">
-                                                        Edit
+                                                        แก้ไข
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -231,15 +233,15 @@ export default function ManageUserPage() {
                 >
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>Edit User</DialogTitle>
+                            <DialogTitle>แก้ไขผู้ใช้</DialogTitle>
                             <DialogDescription>
-                                Make changes to {selectedUser.name || selectedUser.email}'s profile. Click save when you're done.
+                                ทำการเปลี่ยนแปลงโปรไฟล์ของ {selectedUser.name || selectedUser.email} เมื่อเสร็จแล้วคลิกบันทึก
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="name" className="text-right">
-                                    Name
+                                    ชื่อ
                                 </Label>
                                 <Input
                                     id="name"
@@ -251,7 +253,7 @@ export default function ManageUserPage() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="bio" className="text-right">
-                                    Bio
+                                    ประวัติ
                                 </Label>
                                 <Textarea
                                     id="bio"
@@ -264,14 +266,14 @@ export default function ManageUserPage() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="departmentId" className="text-right">
-                                    Department
+                                    แผนก
                                 </Label>
                                 <Select
                                     onValueChange={(value) => handleSelectChange("departmentId", value)}
                                     value={editFormData.departmentId}
                                 >
                                     <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select a department" />
+                                        <SelectValue placeholder="เลือกแผนก" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {departments?.map((dept) => (
@@ -284,14 +286,14 @@ export default function ManageUserPage() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="roleId" className="text-right">
-                                    Role
+                                    บทบาท
                                 </Label>
                                 <Select
                                     onValueChange={(value) => handleSelectChange("roleId", value)}
                                     value={editFormData.roleId}
                                 >
                                     <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select a role" />
+                                        <SelectValue placeholder="เลือกบทบาท" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {roles?.map((role) => (
@@ -310,10 +312,10 @@ export default function ManageUserPage() {
                                     onClick={handleManageDepartmentsClick}
                                     className="mr-auto"
                                 >
-                                    Manage Controlled Depts.
+                                    จัดการแผนกที่ควบคุม
                                 </Button>
                             )}
-                            <Button onClick={handleUpdateUser}>Save changes</Button>
+                            <Button onClick={handleUpdateUser}>บันทึกการเปลี่ยนแปลง</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -327,9 +329,9 @@ export default function ManageUserPage() {
                 >
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>Manage Controlled Departments</DialogTitle>
+                            <DialogTitle>จัดการแผนกที่ควบคุม</DialogTitle>
                             <DialogDescription>
-                                Select departments that {selectedUser.name || selectedUser.email} can control.
+                                เลือกแผนกที่ {selectedUser.name || selectedUser.email} สามารถควบคุมได้
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -352,7 +354,7 @@ export default function ManageUserPage() {
                             ))}
                         </div>
                         <DialogFooter>
-                            <Button onClick={handleUpdateControlledDepartments}>Save changes</Button>
+                            <Button onClick={handleUpdateControlledDepartments}>บันทึกการเปลี่ยนแปลง</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>

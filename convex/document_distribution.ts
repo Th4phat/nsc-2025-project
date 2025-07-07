@@ -1,4 +1,5 @@
 import { mutation, query, internalMutation, internalQuery, internalAction } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -34,6 +35,36 @@ export const getUserRoleAndPermissions = internalQuery({
 });
 
 /**
+ * Internal query to get users by department IDs.
+ */
+export const getUsersByDepartments = internalQuery({
+  args: { departmentIds: v.array(v.id("departments")) },
+  returns: v.array(v.object({ _id: v.id("users") })),
+  handler: async (ctx, args) => {
+    const usersPromises = args.departmentIds.map(async (departmentId) => {
+      return await ctx.db
+        .query("users")
+        .withIndex("by_departmentId", (q) => q.eq("departmentId", departmentId))
+        .collect();
+    });
+    const usersByDepartment = await Promise.all(usersPromises);
+    const allUsers = usersByDepartment.flat();
+    return allUsers.map(user => ({ _id: user._id }));
+  },
+});
+
+/**
+ * Internal query to get all users.
+ */
+export const getAllUsers = internalQuery({
+  args: {},
+  returns: v.array(v.object({ _id: v.id("users") })),
+  handler: async (ctx) => {
+    return await ctx.db.query("users").collect();
+  },
+});
+
+/**
  * Sends a document to specified departments.
  * Accessible by users with 'headofdepartment' or 'director' role.
  */
@@ -44,14 +75,11 @@ export const sendToDepartments = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email as string))
-      .unique();
+    const user = await ctx.db.get(userId);
 
     if (!user) {
       throw new Error("User not found");
@@ -83,18 +111,25 @@ export const sendToDepartments = mutation({
         throw new Error("Unauthorized: Head of Department has no controlled departments defined.");
     }
 
-    await ctx.db.insert("distributedDocuments", {
-      documentId: args.documentId,
-      senderId: user._id,
-      recipientDepartmentIds: args.departmentIds,
+    const users = await ctx.runQuery(internal.document_distribution.getUsersByDepartments, {
+      departmentIds: args.departmentIds,
     });
+
+    for (const recipientUser of users) {
+      await ctx.db.insert("documentShares", {
+        documentId: args.documentId,
+        recipientId: recipientUser._id,
+        sharerId: user._id,
+        permissionGranted: ["view", "download"],
+      });
+    }
 
     await ctx.db.insert("auditLogs", {
       actorId: user._id,
       action: "document.distribute.departments",
       targetTable: "documents",
       targetId: args.documentId,
-      details: { departmentIds: args.departmentIds },
+      details: { sharedWith: users.length },
     });
 
     return null;
@@ -111,14 +146,11 @@ export const sendToOrganization = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email as string))
-      .unique();
+    const user = await ctx.db.get(userId);
 
     if (!user) {
       throw new Error("User not found");
@@ -133,18 +165,23 @@ export const sendToOrganization = mutation({
       throw new Error("Unauthorized: Only directors can send documents to the entire organization.");
     }
 
-    await ctx.db.insert("distributedDocuments", {
-      documentId: args.documentId,
-      senderId: user._id,
-      sentToAll: true,
-    });
+    const users = await ctx.runQuery(internal.document_distribution.getAllUsers, {});
+
+    for (const recipientUser of users) {
+      await ctx.db.insert("documentShares", {
+        documentId: args.documentId,
+        recipientId: recipientUser._id,
+        sharerId: user._id,
+        permissionGranted: ["view", "download"],
+      });
+    }
 
     await ctx.db.insert("auditLogs", {
       actorId: user._id,
       action: "document.distribute.organization",
       targetTable: "documents",
       targetId: args.documentId,
-      details: { sentToAll: true },
+      details: { sharedWith: users.length, sentToAll: true },
     });
 
     return null;

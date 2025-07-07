@@ -48,7 +48,7 @@ export default function SendAcrossOrgPage() {
   if (!currentUserRole) { // Handles both undefined (loading) and null (error/no data)
     return (
       <div className="flex items-center justify-center h-full">
-        <h1 className="text-2xl font-bold text-gray-500">Loading...</h1>
+        <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
       </div>
     );
   }
@@ -56,29 +56,29 @@ export default function SendAcrossOrgPage() {
   if (!(currentUserRole.permissions?.includes("document:send:company"))) {
     return (
       <div className="flex items-center justify-center h-full">
-        <h1 className="text-2xl font-bold text-red-500">Access Denied</h1>
+        <h1 className="text-2xl font-bold text-red-500">ปฏิเสธการเข้าถึง</h1>
       </div>
     );
   }
 
   const handleConfirmSend = async () => {
     if (!selectedDocumentId) {
-      toast.error("Please select a document.");
+      toast.error("กรุณาเลือกเอกสาร");
       return;
     }
 
     try {
       if (sendOption === "entireOrg") {
         await sendToOrganization({ documentId: selectedDocumentId });
-        toast.success("Document sent to entire organization!");
+        toast.success("ส่งเอกสารไปยังทั้งองค์กรแล้ว!");
       } else if (sendOption === "specificDepts" && selectedDepartmentIds.length > 0) {
         await sendToDepartments({
           documentId: selectedDocumentId,
           departmentIds: selectedDepartmentIds,
         });
-        toast.success("Document sent to selected departments!");
+        toast.success("ส่งเอกสารไปยังแผนกที่เลือกแล้ว!");
       } else {
-        toast.error("Please select departments or choose to send to the entire organization.");
+        toast.error("กรุณาเลือกแผนกหรือเลือกส่งไปยังทั้งองค์กร");
         return;
       }
       // Reset form
@@ -87,7 +87,7 @@ export default function SendAcrossOrgPage() {
       setSendOption("entireOrg"); // Reset to default
     } catch (error) {
       console.error("Failed to send document:", error);
-      toast.error("Failed to send document.");
+      toast.error("ส่งเอกสารไม่สำเร็จ");
     } finally {
       setIsConfirmModalOpen(false);
     }
@@ -95,12 +95,12 @@ export default function SendAcrossOrgPage() {
 
   const handleSendDocument = () => {
     if (!selectedDocumentId) {
-      toast.error("Please select a document.");
+      toast.error("กรุณาเลือกเอกสาร");
       return;
     }
 
     if (sendOption === "specificDepts" && selectedDepartmentIds.length === 0) {
-      toast.error("Please select at least one department or choose to send to the entire organization.");
+      toast.error("กรุณาเลือกอย่างน้อยหนึ่งแผนก หรือเลือกส่งไปยังทั้งองค์กร");
       return;
     }
 
@@ -124,23 +124,23 @@ export default function SendAcrossOrgPage() {
                 {/* Change: The form is now encapsulated in a Card for better visual structure. */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-2xl font-bold">Send Document Across Organization</CardTitle>
+                        <CardTitle className="text-2xl font-bold">ส่งเอกสารทั่วทั้งองค์กร</CardTitle>
                         <CardDescription>
-                            Select a document and choose the recipients for distribution.
+                            เลือกเอกสารและผู้รับเพื่อแจกจ่าย
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-8">
                         {/* --- Step 1: Document Selection --- */}
                         <div className="grid gap-2">
                             <Label htmlFor="document-select" className="font-semibold text-base">
-                                1. Select Document
+                                1. เลือกเอกสาร
                             </Label>
                             <Select
                                 onValueChange={(value) => setSelectedDocumentId(value as Id<"documents">)}
                                 value={selectedDocumentId || ""}
                             >
                                 <SelectTrigger id="document-select" className="w-full">
-                                    <SelectValue placeholder="Choose a document to send..." />
+                                    <SelectValue placeholder="เลือกเอกสารที่จะส่ง..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {documents?.map((doc) => (
@@ -155,7 +155,7 @@ export default function SendAcrossOrgPage() {
                         {/* --- Step 2: Recipient Options --- */}
                         <div className="grid gap-4">
                             <Label className="font-semibold text-base">
-                                2. Choose Recipients
+                                2. เลือกผู้รับ
                             </Label>
                             
                             {/* Major Change: Replaced the single checkbox with a RadioGroup.
@@ -170,18 +170,18 @@ export default function SendAcrossOrgPage() {
                                 <Label className="flex items-center gap-3 rounded-lg border p-4 hover:bg-muted transition-colors cursor-pointer">
                                     <RadioGroupItem value="entireOrg" id="r1" />
                                     <div className="grid gap-0.5">
-                                        <span className="font-semibold">Entire Organization</span>
+                                        <span className="font-semibold">ทั้งองค์กร</span>
                                         <span className="text-sm text-muted-foreground">
-                                            The document will be sent to all departments.
+                                            เอกสารจะถูกส่งไปยังทุกแผนก
                                         </span>
                                     </div>
                                 </Label>
                                 <Label className="flex items-center gap-3 rounded-lg border p-4 hover:bg-muted transition-colors cursor-pointer">
                                     <RadioGroupItem value="specificDepts" id="r2" />
                                     <div className="grid gap-0.5">
-                                        <span className="font-semibold">Specific Departments</span>
+                                        <span className="font-semibold">แผนกที่ระบุ</span>
                                         <span className="text-sm text-muted-foreground">
-                                            Manually select the departments to receive the document.
+                                            เลือกแผนกที่จะรับเอกสารด้วยตนเอง
                                         </span>
                                     </div>
                                 </Label>
@@ -190,7 +190,7 @@ export default function SendAcrossOrgPage() {
                             {/* Conditional rendering based on the RadioGroup's value */}
                             {sendOption === "specificDepts" && (
                                 <div className="pl-4 mt-2 border-l-2">
-                                     <p className="mb-3 text-sm font-medium text-muted-foreground">Select departments below:</p>
+                                     <p className="mb-3 text-sm font-medium text-muted-foreground">เลือกแผนกด้านล่าง:</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                         {departments?.map((dept) => (
                                             /* Change: Department checkboxes are wrapped in a clickable Label for better UX. */
@@ -214,7 +214,7 @@ export default function SendAcrossOrgPage() {
                     </CardContent>
                     <CardFooter>
                         <Button onClick={handleSendDocument} className="w-full" size="lg">
-                            Send Document
+                            ส่งเอกสาร
                         </Button>
                     </CardFooter>
                 </Card>
@@ -223,17 +223,17 @@ export default function SendAcrossOrgPage() {
             <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Confirm Document Distribution</DialogTitle>
+                        <DialogTitle>ยืนยันการแจกจ่ายเอกสาร</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to send the selected document to the chosen recipients? This action cannot be undone.
+                            คุณแน่ใจหรือไม่ว่าต้องการส่งเอกสารที่เลือกไปยังผู้รับที่เลือกไว้? การดำเนินการนี้ไม่สามารถยกเลิกได้
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
+                            <Button variant="outline">ยกเลิก</Button>
                         </DialogClose>
                         <Button onClick={handleConfirmSend}>
-                            Confirm Send
+                            ยืนยันการส่ง
                         </Button>
                     </DialogFooter>
                 </DialogContent>

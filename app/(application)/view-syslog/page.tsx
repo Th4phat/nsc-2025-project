@@ -10,7 +10,9 @@ export default function ViewSyslogPage() {
   const auditLogs = useQuery(api.audit_logs.getAuditLogs);
 
   if (userPermissions === undefined || auditLogs === undefined) {
-    return <div>Loading...</div>;
+    return <div className="flex items-center justify-center h-full">
+        <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
+      </div>
   }
 
   if (!userPermissions.includes("system:logs:read")) {
@@ -18,10 +20,10 @@ export default function ViewSyslogPage() {
       <div className="flex items-center justify-center h-full">
         <Card className="w-[400px]">
           <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
+            <CardTitle>ปฏิเสธการเข้าถึง</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>You do not have the necessary permissions to view this page.</p>
+            <p>คุณไม่มีสิทธิ์ที่จำเป็นในการดูหน้านี้</p>
           </CardContent>
         </Card>
       </div>
@@ -30,10 +32,10 @@ export default function ViewSyslogPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">System Audit Logs</h1>
+      <h1 className="text-2xl font-bold mb-4">บันทึกการตรวจสอบระบบ</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Audit Log Entries</CardTitle>
+          <CardTitle>รายการบันทึกการตรวจสอบ</CardTitle>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[calc(100vh-200px)] w-full rounded-md border">
@@ -41,16 +43,16 @@ export default function ViewSyslogPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
+                    ผู้ใช้
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Action
+                    การกระทำ
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Details
+                    รายละเอียด
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Timestamp
+                    เวลา
                   </th>
                 </tr>
               </thead>
@@ -58,14 +60,14 @@ export default function ViewSyslogPage() {
                 {auditLogs.map((log) => (
                   <tr key={log._id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {log.actorName || "N/A"}
+                      {log.actorName || "ไม่มี"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {log.action}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="whitespace-pre-wrap text-xs">
-                        {log.details ? JSON.stringify(log.details, null, 2) : "N/A"}
+                        {log.details ? JSON.stringify(log.details, null, 2) : "ไม่มี"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

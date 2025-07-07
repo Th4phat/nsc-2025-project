@@ -30,6 +30,7 @@ export function ApplicationLayout({ children }: { children: React.ReactNode }) {
       <NotificationSidebar
         isOpen={isNotificationSidebarOpen}
         onClose={() => setNotificationSidebarOpen(false)}
+        closeBrowserNotification={closeNotification}
       />
     </>
   );

@@ -30,7 +30,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { signOut } from "@/convex/auth"
 import { useAuthActions } from "@convex-dev/auth/react"
 import Link from "next/link"
 

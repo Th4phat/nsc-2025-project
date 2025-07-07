@@ -63,7 +63,7 @@ const DownloadButtonSection: React.FC<DownloadButtonSectionProps> = ({ document 
       onClick={handleDownload}
     >
       <Download className="h-4 w-4" />
-      <span className="hidden sm:inline">ดาวน์โหลด</span>
+      <span className="">ดาวน์โหลด</span>
     </Button>
   );
 };
@@ -95,6 +95,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
 
   const userPermissions = useQuery(api.document_sharing.getUserDocumentPermissions, document ? { documentId: document._id } : "skip");
   const currentUser = useQuery(api.users.getCurrentUser);
+  const sharerInfo = useQuery(api.document_sharing.getSharerForDocument, document ? { documentId: document._id } : "skip");
 
   const handleDelete = async () => {
     if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะลบเอกสารนี้?")) {
@@ -134,18 +135,13 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
 
   return (
     <aside className="w-full lg:w-80 xl:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col">
-      {/* Header Section */}
       <div className="p-4 lg:p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
         <h3 className="text-lg lg:text-xl font-semibold text-slate-900 dark:text-slate-100 truncate mb-4 leading-tight">
           {document.name}
         </h3>
-
-        {/* Action Buttons - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
           {canDownload && (
-            // <SimpleErrorBoundary fallback={null}>
             <DownloadButtonSection document={document} />
-            // </SimpleErrorBoundary>
           )}
           {canShare && (
             <Button
@@ -156,7 +152,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               onClick={() => setIsShareModalOpen(true)}
             >
               <Share className="h-4 w-4" />
-              <span className="hidden sm:inline">แชร์</span>
+              <span className="">แชร์</span>
             </Button>
           )}
           {canEdit && (
@@ -167,7 +163,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               title="แก้ไขข้อมูล"
             >
               <Edit3 className="h-4 w-4" />
-              <span className="hidden sm:inline">แก้ไข</span>
+              <span className="">แก้ไข</span>
             </Button>
           )}
           <Button
@@ -178,7 +174,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             onClick={() => setPreviewDocumentId(document._id)}
           >
             <Eye className="h-4 w-4" />
-            <span className="hidden sm:inline">ดูตัวอย่าง</span>
+            <span className="">ดูตัวอย่าง</span>
           </Button>
           <Button
             variant="ghost"
@@ -188,7 +184,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
            onClick={() => setIsMoveToFolderOpen(true)}
           >
             <FolderOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">ย้าย</span>
+            <span className="">ย้าย</span>
           </Button>
           {isOwner && (
             <Button
@@ -199,16 +195,14 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               onClick={handleDelete}
             >
               <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">ลบ</span>
+              <span className="">ลบ</span>
             </Button>
           )}
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        {/* Document Information */}
         <div className="p-4 lg:p-6 space-y-6">
-          {/* Upload Date */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <Calendar className="h-4 w-4" />
@@ -219,9 +213,23 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             </p>
           </div>
 
+          {sharerInfo && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                  <Share className="h-4 w-4" />
+                  <span className="text-sm font-medium">แชร์โดย</span>
+                </div>
+                <p className="text-slate-900 dark:text-slate-100 text-sm pl-6">
+                  {sharerInfo.name || sharerInfo.email}
+                </p>
+              </div>
+            </>
+          )}
+
           <Separator />
 
-          {/* File Size */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <HardDrive className="h-4 w-4" />
@@ -234,7 +242,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
 
           <Separator />
 
-          {/* File Type */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
               <FileType className="h-4 w-4" />
@@ -245,7 +252,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             </Badge>
           </div>
 
-          {/* AI Categories */}
           {document.aiCategories && document.aiCategories.length > 0 && (
             <>
               <Separator />
@@ -280,7 +286,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
           )}
         </div>
 
-        {/* Preview Section */}
         <div className="border-t border-slate-200 dark:border-slate-800 p-4 lg:p-6">
           <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
             <Eye className="h-4 w-4" />

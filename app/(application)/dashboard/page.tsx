@@ -2,7 +2,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import {
   FileText,
-  FileSpreadsheet,
   FileImage,
   type LucideIcon,
   Search,
@@ -10,11 +9,9 @@ import {
   X,
   Upload,
 } from "lucide-react";
+
 import RightSidebar from "@/components/RightSidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import {
-  SidebarProvider,
-  SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -63,10 +60,11 @@ export default function Page() {
       ? api.document.listOwnedDocuments
       : mode === "shared"
       ? api.document_sharing.listSharedDocuments
+      : mode === "trash"
+      ? api.document.listTrashedDocuments
       : api.document.getAllDocuments,
-    {
-    },
-  )
+    {},
+  );
 
   const filteredDocuments = useMemo(() => {
     return documents?.filter((document) =>

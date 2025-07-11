@@ -41,6 +41,7 @@ export const listOwnedDocuments = query({
         return await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
+            .filter((q) => q.eq(q.field("status"), "completed")) // Only return active documents
             .collect();
     },
 });
@@ -243,6 +244,7 @@ export const getAllDocuments = query({
         const ownedDocuments = await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
+            .filter((q) => q.eq(q.field("status"), "completed")) // Only return active documents
             .collect();
 
         // Get shared documents
@@ -254,7 +256,7 @@ export const getAllDocuments = query({
         const sharedDocuments = [];
         for (const share of sharedDocumentShares) {
             const document = await ctx.db.get(share.documentId);
-            if (document) {
+            if (document && document.status === "completed") { // Only return active documents
                 sharedDocuments.push(document);
             }
         }
@@ -482,5 +484,44 @@ export const getDocumentAndUrl = query({
             mimeType: document.mimeType,
             url: url,
         };
+    },
+});
+
+export const listTrashedDocuments = query({
+    args: {},
+    returns: v.array(
+        v.object({
+            _id: v.id("documents"),
+            _creationTime: v.number(),
+            ownerId: v.id("users"),
+            name: v.string(),
+            description: v.optional(v.string()),
+            fileId: v.id("_storage"),
+            mimeType: v.string(),
+            fileSize: v.number(),
+            status: v.union(
+                v.literal("uploading"),
+                v.literal("processing"),
+                v.literal("completed"),
+                v.literal("failed"),
+                v.literal("trashed")
+            ),
+            aiCategories: v.optional(v.array(v.string())),
+            aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
+            aiProcessingError: v.optional(v.string()),
+            classified: v.optional(v.boolean()),
+            folderId: v.optional(v.id("folders")),
+        })
+    ),
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            return [];
+        }
+        return await ctx.db
+            .query("documents")
+            .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
+            .filter((q) => q.eq(q.field("status"), "trashed"))
+            .collect();
     },
 });

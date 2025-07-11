@@ -101,7 +101,7 @@ export const getDocumentDetails = query({
     },
 });
 
-export const deleteDocument = mutation({
+export const permanentlyDeleteDocument = mutation({
     args: {
         documentId: v.id("documents"),
     },
@@ -154,6 +154,74 @@ export const deleteDocument = mutation({
             targetTable: "documents",
             targetId: args.documentId,
             details: { documentName: document.name, originalFileId: document.fileId },
+        });
+
+        return null;
+    },
+});
+
+export const softDeleteDocument = mutation({
+    args: {
+        documentId: v.id("documents"),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new Error("Authenticated user not found.");
+        }
+
+        const document = await ctx.db.get(args.documentId);
+        if (!document) {
+            throw new Error("Document not found.");
+        }
+
+        if (document.ownerId !== userId) {
+            throw new Error("Not authorized to soft delete this document. Only the owner can soft delete.");
+        }
+
+        await ctx.db.patch(args.documentId, { status: "trashed" });
+
+        await ctx.db.insert("auditLogs", {
+            actorId: userId,
+            action: "document.softDelete",
+            targetTable: "documents",
+            targetId: args.documentId,
+            details: { documentName: document.name },
+        });
+
+        return null;
+    },
+});
+
+export const restoreDocument = mutation({
+    args: {
+        documentId: v.id("documents"),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new Error("Authenticated user not found.");
+        }
+
+        const document = await ctx.db.get(args.documentId);
+        if (!document) {
+            throw new Error("Document not found.");
+        }
+
+        if (document.ownerId !== userId) {
+            throw new Error("Not authorized to restore this document. Only the owner can restore.");
+        }
+
+        await ctx.db.patch(args.documentId, { status: "completed" }); // Restore to "completed" status
+
+        await ctx.db.insert("auditLogs", {
+            actorId: userId,
+            action: "document.restore",
+            targetTable: "documents",
+            targetId: args.documentId,
+            details: { documentName: document.name },
         });
 
         return null;

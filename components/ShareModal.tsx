@@ -10,45 +10,39 @@ import React, {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   X,
   Users,
-  Mail,
   Share as ShareIcon,
   Loader2,
   Sparkles,
+  Check,
+  Search,
+  Eye,
+  Download,
+  Send,
+  Keyboard,
 } from "lucide-react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
-import { ScrollArea } from "./ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 // --- TYPE DEFINITIONS ---
-type PermissionType =
-  | "view"
-  | "download"
-  | "comment"
-  | "edit_metadata"
-  | "resend";
-
+type PermissionType = "view" | "download" | "resend";
 type RecipientWithPermissions = {
   userId: Id<"users">;
   permissions: PermissionType[];
 };
-
-// --- FIX: Define a common user type for display purposes ---
-// This type includes only the fields needed by the sub-components,
-// resolving the conflict between the full Doc<"users"> and the partial
-// user object from the search query.
 type DisplayUser = {
   _id: Id<"users">;
   name?: string | null;
@@ -57,14 +51,14 @@ type DisplayUser = {
 };
 
 // --- CONSTANTS ---
-const ALL_PERMISSIONS: PermissionType[] = [
-  "view",
-  "download",
-  "comment",
-  "edit_metadata",
-  "resend",
-];
+const ALL_PERMISSIONS: PermissionType[] = ["view", "download", "resend"];
 const DEFAULT_PERMISSIONS: PermissionType[] = ["view", "download"];
+
+const PERMISSION_CONFIG = {
+  view: { label: "ดู", icon: Eye, color: "bg-green-500" },
+  download: { label: "ดาวน์โหลด", icon: Download, color: "bg-blue-500" },
+  resend: { label: "ส่งต่อ", icon: Send, color: "bg-purple-500" },
+};
 
 // --- PROPS INTERFACES ---
 interface ShareModalProps {
@@ -73,473 +67,432 @@ interface ShareModalProps {
   documentId: Id<"documents">;
 }
 
-interface SelectedRecipientProps {
-  user: DisplayUser; // FIX: Use the common DisplayUser type
-  recipient: RecipientWithPermissions;
-  onRemove: (userId: Id<"users">) => void;
-  onPermissionChange: (
-    userId: Id<"users">,
-    permission: PermissionType,
-    isChecked: boolean,
-  ) => void;
-  isSubmitting: boolean;
-}
+// --- STABLE COMPONENTS (prevent re-renders) ---
+const UserAvatar = React.memo(({ user, size = 8 }: { user: DisplayUser; size?: number }) => (
+  <Avatar className={`h-${size} w-${size}`}>
+    <AvatarImage src={user.imageUrl ?? undefined} />
+    <AvatarFallback className="text-xs font-semibold bg-muted-foreground text-background">
+      {user.name?.charAt(0)?.toUpperCase() ?? user.email.charAt(0)?.toUpperCase()}
+    </AvatarFallback>
+  </Avatar>
+));
 
-interface UserSuggestionItemProps {
-  user: DisplayUser; // FIX: Use the common DisplayUser type
-  isSelected: boolean;
-  onToggle: (userId: Id<"users">) => void;
-  isSubmitting: boolean;
-}
-
-interface AiSuggestionSectionProps {
-  onGenerate: () => void;
-  isGenerating: boolean;
-  isSubmitting: boolean;
-}
-
-// --- MEMOIZED SUB-COMPONENTS ---
-
-const SelectedRecipient = React.memo(
+const PermissionButton = React.memo(
   ({
-    user,
-    recipient,
-    onRemove,
-    onPermissionChange,
-    isSubmitting,
-  }: SelectedRecipientProps) => (
-    <div className="flex flex-col border rounded-lg p-2 bg-white shadow-sm w-full">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{user.name || user.email}</span>
-        <button
-          onClick={() => onRemove(recipient.userId)}
-          className="text-red-500 hover:text-red-700"
-          title="Remove recipient"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-        {ALL_PERMISSIONS.map(perm => (
-          <label key={perm} className="flex items-center gap-1.5">
-            <Input
-              type="checkbox"
-              className="h-3.5 w-3.5"
-              checked={recipient.permissions.includes(perm)}
-              onChange={e =>
-                onPermissionChange(recipient.userId, perm, e.target.checked)
-              }
-              disabled={isSubmitting}
-            />
-            <span className="capitalize">{perm.replace("_", " ")}</span>
-          </label>
-        ))}
-      </div>
-    </div>
-  ),
-);
-
-const UserSuggestionItem = React.memo(
-  ({ user, isSelected, onToggle, isSubmitting }: UserSuggestionItemProps) => (
-    <Button
-      variant={isSelected ? "default" : "outline"}
-      onClick={() => onToggle(user._id)}
-      className="justify-start gap-2 h-auto py-2 px-3"
-      disabled={isSubmitting}
-    >
-      <Avatar className="h-8 w-8">
-        <AvatarImage src={user.imageUrl ?? undefined} />
-        <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-          {user.name?.charAt(0) ?? "?"}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex flex-col items-start text-left">
-        <span className="text-sm font-medium truncate max-w-[160px]">
-          {user.name || "Unnamed User"}
-        </span>
-        <span className="text-xs truncate max-w-[160px]">
-          {user.email}
-        </span>
-      </div>
-    </Button>
-  ),
-);
-
-const AiSuggestionSection = React.memo(
-  ({ onGenerate, isGenerating, isSubmitting }: AiSuggestionSectionProps) => (
-    <div className="pt-4 border-t">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="space-y-0.5">
-          <Label
-            htmlFor="generate-ai-suggestions"
-            className="text-sm font-medium"
-          >
-            แนะนำผู้รับโดย AI
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            ให้ AI เป็นคนเลือกผู้รับเอกสารให้คุณสิ!
-          </p>
-        </div>
-        <Button
-          id="generate-ai-suggestions"
-          variant="outline"
-          onClick={onGenerate}
-          disabled={isSubmitting || isGenerating}
-          className="w-full sm:w-auto"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              กำลังทำงาน...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              เลือกผู้รับ
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  ),
+    permission,
+    isActive,
+    onClick,
+    disabled,
+  }: {
+    permission: PermissionType;
+    isActive: boolean;
+    onClick: () => void;
+    disabled: boolean;
+  }) => {
+    const config = PERMISSION_CONFIG[permission];
+    const Icon = config.icon;
+    
+    return (
+      <Button
+        variant={isActive ? "default" : "outline"}
+        size="sm"
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+          "h-6 text-xs gap-1 px-2 py-1",
+          isActive && `${config.color} hover:opacity-90`,
+        )}
+      >
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Button>
+    );
+  },
 );
 
 // --- MAIN COMPONENT ---
-
 export const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
   documentId,
 }) => {
-  // --- STATE AND REFS ---
+  // --- STATE ---
   const [searchTerm, setSearchTerm] = useState("");
-  const [
-    selectedRecipientsWithPermissions,
-    setSelectedRecipientsWithPermissions,
-  ] = useState<RecipientWithPermissions[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<RecipientWithPermissions[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // --- CONVEX DATA FETCHING ---
-  const sharedUsersData = useQuery(
-    api.document_sharing.getSharedUsersForDocument,
-    { documentId },
-  );
-  const allUsersData = useQuery(api.users.listUsersForShare, {
-    searchQuery: searchTerm.length > 0 ? searchTerm : undefined,
-  });
-  const documentDetails = useQuery(api.document_crud.getDocumentDetails, {
-    documentId,
-  });
+  // --- CONVEX QUERIES (stable) ---
+  const sharedUsers = useQuery(api.document_sharing.getSharedUsersForDocument, { documentId });
+  const documentDetails = useQuery(api.document_crud.getDocumentDetails, { documentId });
   const currentUserId = useQuery(api.users.getCurrentUserID);
-
-  // --- CONVEX MUTATIONS AND ACTIONS ---
-  const shareDocumentMutation = useMutation(api.document_sharing.shareDocument);
-  const unshareDocumentMutation = useMutation(
-    api.document_sharing.unshareDocument,
-  );
-  const generateAiSuggestionsMutation = useAction(
-    api.document_process.generateAiShareSuggestions,
+  
+  // Search results - only fetch when needed
+  const searchResults = useQuery(
+    api.users.listUsersForShare,
+    searchTerm.length > 1 ? { searchQuery: searchTerm } : "skip"
   );
 
-  // --- MEMOIZED DATA ---
-  const availableUsers = useMemo(() => {
-    // FIX: Use a map of the common `DisplayUser` type.
-    const usersMap = new Map<Id<"users">, DisplayUser>();
+  // Fetch AI suggested users details
+  const aiSuggestedUsers = useQuery(
+    api.users.getUsersByIds,
+    documentDetails?.aiSuggestedRecipients && documentDetails.aiSuggestedRecipients.length > 0
+      ? { userIds: documentDetails.aiSuggestedRecipients }
+      : "skip"
+  );
 
-    // Add users who are already shared. `su.user` is a full Doc and
-    // is compatible with DisplayUser.
-    sharedUsersData?.forEach(su => usersMap.set(su.user._id, su.user));
+  // --- MUTATIONS ---
+  const shareDocument = useMutation(api.document_sharing.shareDocument);
+  const unshareDocument = useMutation(api.document_sharing.unshareDocument);
+  const generateAISuggestions = useAction(api.document_process.generateAiShareSuggestions);
 
-    // Add users from search results. `allU` is the partial user object
-    // that is also compatible with DisplayUser.
-    allUsersData?.forEach(allU => {
-      if (!usersMap.has(allU._id)) {
-        usersMap.set(allU._id, allU);
-      }
-    });
+  // --- MEMOIZED VALUES ---
+  const userMap = useMemo(() => {
+    const map = new Map<Id<"users">, DisplayUser>();
+    sharedUsers?.forEach(su => map.set(su.user._id, su.user));
+    searchResults?.forEach(user => map.set(user._id, user));
+    aiSuggestedUsers?.forEach(user => map.set(user._id, user)); // Add AI suggested users to map
+    return map;
+  }, [sharedUsers, searchResults, aiSuggestedUsers]); // Add aiSuggestedUsers to dependencies
 
-    return Array.from(usersMap.values()).filter(
-      user => user._id !== currentUserId,
-    );
-  }, [sharedUsersData, allUsersData, currentUserId]);
+  const selectedUserIds = useMemo(
+    () => new Set(selectedRecipients.map(r => r.userId)),
+    [selectedRecipients]
+  );
 
   // --- EFFECTS ---
   useEffect(() => {
-    if (sharedUsersData) {
-      const initialSelected = sharedUsersData.map(su => ({
-        userId: su.user._id,
-        permissions: su.permissions,
-      }));
-      setSelectedRecipientsWithPermissions(initialSelected);
+    if (sharedUsers) {
+      setSelectedRecipients(
+        sharedUsers.map(su => ({
+          userId: su.user._id,
+          permissions: su.permissions,
+        }))
+      );
     }
-  }, [sharedUsersData]);
+  }, [sharedUsers]);
 
   useEffect(() => {
-    if (
-      documentDetails?.aiSuggestedRecipients &&
-      Array.isArray(documentDetails.aiSuggestedRecipients)
-    ) {
-      setSelectedRecipientsWithPermissions(prev => {
-        const existingIds = new Set(prev.map(r => r.userId));
-        const newAISuggestedRecipients = (
-          documentDetails.aiSuggestedRecipients ?? []
-        )
-          .filter((aiId: Id<"users">) => !existingIds.has(aiId))
-          .map((aiId: Id<"users">) => ({
-            userId: aiId,
-            permissions: DEFAULT_PERMISSIONS,
-          }));
-        return [...prev, ...newAISuggestedRecipients];
-      });
+    if (aiSuggestedUsers && currentUserId) { // Change from documentDetails?.aiSuggestedRecipients to aiSuggestedUsers
+      const aiSuggested = aiSuggestedUsers // Change from documentDetails.aiSuggestedRecipients to aiSuggestedUsers
+        .filter((user: DisplayUser) => user._id !== currentUserId && !selectedUserIds.has(user._id)) // Filter by user._id
+        .map((user: DisplayUser) => ({ // Map user object to RecipientWithPermissions
+          userId: user._id,
+          permissions: DEFAULT_PERMISSIONS,
+        }));
+      
+      if (aiSuggested.length > 0) {
+        setSelectedRecipients(prev => [...prev, ...aiSuggested]);
+      }
     }
-  }, [documentDetails?.aiSuggestedRecipients]);
+  }, [aiSuggestedUsers, currentUserId, selectedUserIds]); // Update dependencies
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
+      setSearchTerm("");
     }
   }, [isOpen]);
 
-  // --- CURRENT USER ID ---
-  const currentUser = useQuery(api.users.getCurrentUser);
-
-  // --- MEMOIZED HANDLERS ---
-  const handleToggleRecipient = useCallback((userId: Id<"users">) => {
-    setSelectedRecipientsWithPermissions(prev => {
-      const isAlreadySelected = prev.some(r => r.userId === userId);
-      if (isAlreadySelected) {
+  // --- HANDLERS ---
+  const toggleRecipient = useCallback((userId: Id<"users">) => {
+    setSelectedRecipients(prev => {
+      const exists = prev.find(r => r.userId === userId);
+      if (exists) {
         return prev.filter(r => r.userId !== userId);
-      } else {
-        return [...prev, { userId, permissions: DEFAULT_PERMISSIONS }];
       }
+      return [...prev, { userId, permissions: DEFAULT_PERMISSIONS }];
     });
   }, []);
 
-  const handleRemoveRecipient = useCallback(
-    async (userIdToRemove: Id<"users">) => {
-      setSelectedRecipientsWithPermissions(prev =>
-        prev.filter(r => r.userId !== userIdToRemove),
-      );
+  const removeRecipient = useCallback(async (userId: Id<"users">) => {
+    setSelectedRecipients(prev => prev.filter(r => r.userId !== userId));
+    
+    // If was previously shared, unshare immediately
+    const wasShared = sharedUsers?.some(su => su.user._id === userId);
+    if (wasShared) {
       try {
-        const wasAlreadyShared = sharedUsersData?.some(
-          su => su.user._id === userIdToRemove,
-        );
-        if (wasAlreadyShared) {
-          await unshareDocumentMutation({
-            documentId,
-            recipientId: userIdToRemove,
-          });
-        }
+        await unshareDocument({ documentId, recipientId: userId });
       } catch (error) {
-        console.error("Failed to unshare document:", error);
-        alert("Failed to unshare recipient. Please try again.");
+        console.error("Failed to unshare:", error);
       }
-    },
-    [documentId, sharedUsersData, unshareDocumentMutation],
-  );
+    }
+  }, [documentId, sharedUsers, unshareDocument]);
 
-  const handlePermissionChange = useCallback(
-    (
-      userId: Id<"users">,
-      permission: PermissionType,
-      isChecked: boolean,
-    ) => {
-      setSelectedRecipientsWithPermissions(prev =>
-        prev.map(r =>
-          r.userId === userId
-            ? {
-                ...r,
-                permissions: isChecked
-                  ? [...r.permissions, permission]
-                  : r.permissions.filter(p => p !== permission),
-              }
-            : r,
-        ),
-      );
-    },
-    [],
-  );
+  const updatePermissions = useCallback((userId: Id<"users">, permission: PermissionType) => {
+    setSelectedRecipients(prev =>
+      prev.map(r => {
+        if (r.userId !== userId) return r;
+        
+        const hasPermission = r.permissions.includes(permission);
+        return {
+          ...r,
+          permissions: hasPermission
+            ? r.permissions.filter(p => p !== permission)
+            : [...r.permissions, permission],
+        };
+      })
+    );
+  }, []);
 
-  const handleGenerateAiSuggestions = useCallback(async () => {
-    setIsGeneratingSuggestions(true);
+  const handleGenerateAI = useCallback(async () => {
+    setIsGeneratingAI(true);
     try {
-      const suggestedIds = await generateAiSuggestionsMutation({ documentId });
-      if (suggestedIds && suggestedIds.length > 0) {
-        setSelectedRecipientsWithPermissions(prevSelected => {
-          const existingIds = new Set(prevSelected.map(r => r.userId));
-          const newRecipients = suggestedIds
-            .filter(
-              (id: Id<"users">) =>
-                !existingIds.has(id) && id !== currentUserId,
-            )
-            .map((id: Id<"users">) => ({
-              userId: id,
-              permissions: DEFAULT_PERMISSIONS,
-            }));
-          return [...prevSelected, ...newRecipients];
-        });
+      const suggestions = await generateAISuggestions({ documentId });
+      if (suggestions?.length) {
+        const newRecipients = suggestions
+          .filter((id: Id<"users">) => id !== currentUserId && !selectedUserIds.has(id))
+          .map((id: Id<"users">) => ({
+            userId: id,
+            permissions: DEFAULT_PERMISSIONS,
+          }));
+        
+        setSelectedRecipients(prev => [...prev, ...newRecipients]);
       }
     } catch (error) {
-      console.error("Failed to generate AI suggestions:", error);
-      alert("Failed to generate AI suggestions. Please try again.");
+      console.error("AI suggestions failed:", error);
     } finally {
-      setIsGeneratingSuggestions(false);
+      setIsGeneratingAI(false);
     }
-  }, [generateAiSuggestionsMutation, documentId]);
+  }, [generateAISuggestions, documentId, currentUserId, selectedUserIds]);
 
   const handleShare = async () => {
     setIsSubmitting(true);
     try {
       await Promise.all(
-        selectedRecipientsWithPermissions.map(recipient =>
-          shareDocumentMutation({
+        selectedRecipients.map(recipient =>
+          shareDocument({
             documentId,
             recipientId: recipient.userId,
             permissions: recipient.permissions,
-          }),
-        ),
+          })
+        )
       );
       onClose();
     } catch (error) {
-      console.error("Failed to share document:", error);
-      alert("Failed to share document. Please try again.");
+      console.error("Share failed:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent) => {
-    if (
-      e.key === "Enter" &&
-      searchTerm.length > 0 &&
-      allUsersData?.length === 1
-    ) {
-      e.preventDefault();
-      handleToggleRecipient(allUsersData[0]._id);
-      setSearchTerm("");
+  // --- RENDER HELPERS ---
+  const renderSearchResults = () => {
+    if (searchTerm.length < 2) {
+      return (
+        <div className="text-center py-4 text-sm text-muted-foreground">
+          <Keyboard className="h-6 w-6 mx-auto mb-1 opacity-40" />
+          <p>พิมพ์อย่างน้อย 2 ตัวอักษร</p>
+        </div>
+      );
     }
+
+    if (!searchResults) {
+      return (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    if (searchResults.length === 0) {
+      return (
+        <div className="text-center py-4 text-sm text-muted-foreground">
+          <Users className="h-6 w-6 mx-auto mb-1 opacity-40" />
+          <p>ไม่พบผู้ใช้</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-1">
+        {searchResults.map(user => {
+          const isSelected = selectedUserIds.has(user._id);
+          const isCurrentUser = user._id === currentUserId;
+          
+          return (
+            <button
+              key={user._id}
+              type="button"
+              onClick={() => !isCurrentUser && toggleRecipient(user._id)}
+              disabled={isCurrentUser || isSubmitting}
+              className={cn(
+                "w-full flex items-center gap-2 p-2 rounded-md text-left transition-colors",
+                "hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                isSelected && "bg-blue-50 hover:bg-blue-100",
+                isCurrentUser && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <UserAvatar user={user} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">
+                  {user.name || "Unnamed User"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user.email}
+                </p>
+              </div>
+              <div className="w-4 h-4 flex items-center justify-center">
+                {isSelected ? (
+                  <div className="w-full h-full bg-blue-500 rounded-full flex items-center justify-center">
+                    <Check className="h-2.5 w-2.5 text-white" />
+                  </div>
+                ) : (
+                  <div className="w-full h-full rounded-full border-2 border-muted-foreground/30" />
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
-  const isSelected = (userId: Id<"users">) =>
-    selectedRecipientsWithPermissions.some(r => r.userId === userId);
+  const renderSelectedRecipients = () => {
+    if (selectedRecipients.length === 0) return null;
 
-  // --- RENDER ---
+    return (
+      <>
+        <Separator className="my-2" />
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-muted-foreground px-1">
+            เลือกแล้ว {selectedRecipients.length} คน
+          </h4>
+          {selectedRecipients.map(recipient => {
+            const user = userMap.get(recipient.userId);
+            if (!user) return null;
+
+            return (
+              <div
+                key={recipient.userId}
+                className="bg-accent/30 border rounded-lg p-2 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <UserAvatar user={user} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">
+                        {user.name || "Unnamed User"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeRecipient(recipient.userId)}
+                    className="h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    disabled={isSubmitting}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {ALL_PERMISSIONS.map(permission => (
+                    <PermissionButton
+                      key={permission}
+                      permission={permission}
+                      isActive={recipient.permissions.includes(permission)}
+                      onClick={() => updatePermissions(recipient.userId, permission)}
+                      disabled={isSubmitting}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] p-6">
-        <DialogHeader className="pb-4 border-b">
-          <div className="flex items-center">
-            <ShareIcon className="mr-2 h-5 w-5 text-blue-500" />
-            <DialogTitle className="text-xl">แชร์เอกสาร</DialogTitle>
-          </div>
-          <DialogDescription className="pt-2">
-            เลือกผู้รับเอกสาร
-          </DialogDescription>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden flex flex-col max-h-[80vh]">
+        <DialogHeader className="p-3 pb-2 border-b flex-shrink-0">
+          <DialogTitle className="flex items-center text-base">
+            <div className="p-1 bg-blue-500 rounded mr-2">
+              <ShareIcon className="h-4 w-4 text-white" />
+            </div>
+            แชร์เอกสาร
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="search-recipient" className="text-sm font-medium">
-              <Mail className="h-4 w-4 inline mr-1.5" />
-              ค้นหาผู้รับ
-            </Label>
+        {/* Search Section */}
+        <div className="p-3 border-b flex-shrink-0 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              id="search-recipient"
               ref={inputRef}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              placeholder="ค้นหาด้วยอีเมล"
+              placeholder="ค้นหาด้วยชื่อหรืออีเมล..."
+              className="pl-8 h-9 border-2 focus:border-blue-400"
             />
           </div>
 
-          {selectedRecipientsWithPermissions.length > 0 && (
-            <div className="bg-gray-50 p-3 rounded-md">
-              <p className="text-sm text-gray-500 mb-2">ผู้รับ:</p>
-              <div className="flex flex-wrap gap-2">
-                <ScrollArea className="h-40 rounded-md whitespace-nowrap">
-                {selectedRecipientsWithPermissions.map(recipient => {
-                  const user = availableUsers.find(
-                    u => u._id === recipient.userId,
-                  );
-                  if (!user) return null;
-                  return (
-                    <SelectedRecipient
-                      key={recipient.userId}
-                      user={user}
-                      recipient={recipient}
-                      onRemove={handleRemoveRecipient}
-                      onPermissionChange={handlePermissionChange}
-                      isSubmitting={isSubmitting}
-                    />
-                  );
-                })}
-                </ScrollArea>
+          {/* AI Suggestions */}
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-purple-100 rounded">
+                  <Sparkles className="h-3 w-3 text-purple-600" />
+                </div>
+                <span className="font-medium text-xs text-gray-900">
+                  แนะนำโดย AI
+                </span>
               </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              <Users className="h-4 w-4 inline mr-1.5" />
-              ผลการค้นหา / แนะนำ
-            </Label>
-            {(allUsersData === undefined || sharedUsersData === undefined) && (
-              <div className="flex items-center justify-center h-20">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-                <span className="ml-2 text-gray-500">Loading users...</span>
-              </div>
-            )}
-            {availableUsers.length === 0 && searchTerm.length > 0 && (
-              <p className="text-sm text-gray-500">
-                No users found matching your search.
-              </p>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {availableUsers.map(user => (
-                <UserSuggestionItem
-                  key={user._id}
-                  user={user}
-                  isSelected={isSelected(user._id)}
-                  onToggle={handleToggleRecipient}
-                  isSubmitting={isSubmitting || user._id === currentUserId}
-                />
-              ))}
+              <Button
+                onClick={handleGenerateAI}
+                disabled={isSubmitting || isGeneratingAI}
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs bg-white/50"
+              >
+                {isGeneratingAI ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  "สร้าง"
+                )}
+              </Button>
             </div>
           </div>
-
-          <AiSuggestionSection
-            onGenerate={handleGenerateAiSuggestions}
-            isGenerating={isGeneratingSuggestions}
-            isSubmitting={isSubmitting}
-          />
         </div>
 
-        <DialogFooter className="pt-4 border-t flex-col sm:flex-row sm:justify-between gap-2">
-          <div className="text-xs text-muted-foreground">
-            ผู้รับเอกสารจะได้รับการแจ้งเตือนในระบบ
+        {/* Content Area */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-3 space-y-2">
+            {renderSearchResults()}
+            {renderSelectedRecipients()}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+        </ScrollArea>
+
+        {/* Footer */}
+        <DialogFooter className="p-3 border-t bg-gray-50/50 flex-shrink-0">
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 h-9"
+            >
               ยกเลิก
             </Button>
             <Button
               onClick={handleShare}
-              disabled={
-                selectedRecipientsWithPermissions.length === 0 || isSubmitting
-              }
-              className="min-w-[100px]"
+              disabled={selectedRecipients.length === 0 || isSubmitting}
+              className="flex-1 h-9"
             >
               {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  กำลังแชร์...
-                </>
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               ) : (
-                "แชร์"
+                <ShareIcon className="mr-1 h-4 w-4" />
               )}
+              แชร์ ({selectedRecipients.length})
             </Button>
           </div>
         </DialogFooter>

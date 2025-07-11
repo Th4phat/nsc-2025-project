@@ -207,7 +207,12 @@ export const listUsersForShare = query({
       // For simplicity, searching by email. In a real app, you might use a HNSW index for better search.
       users = await ctx.db
         .query("users")
-        .filter((q) => q.eq(q.field("email"), args.searchQuery)) // Only email for now
+        .filter((q) =>
+          q.or(
+            q.eq(q.field("email"), args.searchQuery),
+            q.eq(q.field("name"), args.searchQuery)
+          )
+        )
         .collect();
     } else {
       // Otherwise, return a default list (e.g., all active users up to a limit)
@@ -226,6 +231,39 @@ export const listUsersForShare = query({
       name: user.name,
       email: user.email,
     })).filter(user => user._id !== currentUserId);
+  },
+});
+
+export const getUsersByIds = query({
+  args: {
+    userIds: v.array(v.id("users")),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("users"),
+      name: v.optional(v.union(v.string(), v.null())), // Allow null for name
+      email: v.string(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const users = await Promise.all(
+      args.userIds.map(async (userId) => {
+        const user = await ctx.db.get(userId);
+        if (user) {
+          return {
+            _id: user._id,
+            name: user.name ?? null, // Ensure null if undefined
+            email: user.email,
+          };
+        }
+        return null;
+      })
+    );
+    return users.filter(Boolean) as {
+      _id: Id<"users">;
+      name?: string | null;
+      email: string;
+    }[];
   },
 });
 

@@ -28,6 +28,7 @@ export default defineSchema({
     status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
   })
     .index("by_email", ["email"])
+    .index("by_name", ["name"])
     .index("by_roleId", ["roleId"])
     .index("by_status", ["status"]) // NEW: Index for filtering by status
     .index("by_departmentId", ["departmentId"]),
@@ -102,8 +103,6 @@ export default defineSchema({
       v.union(
         v.literal("view"),
         v.literal("download"),
-        v.literal("comment"),
-        v.literal("edit_metadata"),
         v.literal("resend")
       )
     ),

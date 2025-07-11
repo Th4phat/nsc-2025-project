@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, Component, ErrorInfo, ReactNode } from "react";
+import React, { useState } from "react";
 import { ShareModal } from "@/components/ShareModal";
 import { DocModal } from "@/components/DocumentModal";
 import { Button } from '@/components/ui/button';
@@ -10,22 +10,19 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Doc, Id } from "../convex/_generated/dataModel";
 import { formatRelative } from "date-fns";
-import PDFViewer from "react-pdf-view"
+import { th } from "date-fns/locale";
 import {
   Download,
   Share,
-  Edit3,
   FolderOpen,
   Trash2,
   Calendar,
   HardDrive,
   FileType,
   Tag,
-  FileQuestion,
-  MoreHorizontal,
   Eye
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
@@ -90,7 +87,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
 
   const folders = useQuery(api.folders.getFolders, {});
   const moveDocument = useMutation(api.document.moveDocument);
-  const deleteDocument = useMutation(api.document_crud.deleteDocument);
+  const softDeleteDocument = useMutation(api.document_crud.softDeleteDocument);
+  const restoreDocument = useMutation(api.document_crud.restoreDocument);
+  const permanentlyDeleteDocument = useMutation(api.document_crud.permanentlyDeleteDocument);
   const generateDownloadUrl = useQuery(api.document.generateDownloadUrl, document ? { documentId: document._id } : "skip");
 
   const userPermissions = useQuery(api.document_sharing.getUserDocumentPermissions, document ? { documentId: document._id } : "skip");
@@ -98,12 +97,34 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
   const sharerInfo = useQuery(api.document_sharing.getSharerForDocument, document ? { documentId: document._id } : "skip");
 
   const handleDelete = async () => {
-    if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะลบเอกสารนี้?")) {
+    if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะย้ายเอกสารนี้ไปถังขยะ?")) {
       try {
-        await deleteDocument({ documentId: document._id });
+        await softDeleteDocument({ documentId: document._id });
         setSelectedDocument(null); // Deselect the document after successful deletion
       } catch (error) {
-        console.error("Failed to delete document:", error);
+        console.error("Failed to soft delete document:", error);
+      }
+    }
+  };
+
+  const handleRestore = async () => {
+    if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะกู้คืนเอกสารนี้?")) {
+      try {
+        await restoreDocument({ documentId: document._id });
+        setSelectedDocument(null); // Deselect the document after successful restoration
+      } catch (error) {
+        console.error("Failed to restore document:", error);
+      }
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะลบเอกสารนี้อย่างถาวร? การดำเนินการนี้ไม่สามารถย้อนกลับได้.")) {
+      try {
+        await permanentlyDeleteDocument({ documentId: document._id });
+        setSelectedDocument(null); // Deselect the document after successful permanent deletion
+      } catch (error) {
+        console.error("Failed to permanently delete document:", error);
       }
     }
   };
@@ -129,7 +150,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
   }
 
   const canDownload = userPermissions?.includes("download");
-  const canEdit = userPermissions?.includes("edit_metadata");
   const canShare = userPermissions?.includes("resend");
   const isOwner = currentUser && document.ownerId === currentUser.id;
 
@@ -139,66 +159,80 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
         <h3 className="text-lg lg:text-xl font-semibold text-slate-900 dark:text-slate-100 truncate mb-4 leading-tight">
           {document.name}
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-          {canDownload && (
-            <DownloadButtonSection document={document} />
-          )}
-          {canShare && (
+        {document.status !== "trashed" ? (
+          <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+            {canDownload && (
+              <DownloadButtonSection document={document} />
+            )}
+            {canShare && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2 h-9"
+                title="แชร์"
+                onClick={() => setIsShareModalOpen(true)}
+              >
+                <Share className="h-4 w-4" />
+                <span className="">แชร์</span>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2 h-9"
-              title="แชร์"
-              onClick={() => setIsShareModalOpen(true)}
+              title="ดูตัวอย่าง"
+              onClick={() => setPreviewDocumentId(document._id)}
             >
-              <Share className="h-4 w-4" />
-              <span className="">แชร์</span>
+              <Eye className="h-4 w-4" />
+              <span className="">ดูตัวอย่าง</span>
             </Button>
-          )}
-          {canEdit && (
             <Button
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2 h-9"
-              title="แก้ไขข้อมูล"
+              title="ย้ายไปโฟลเดอร์"
+              onClick={() => setIsMoveToFolderOpen(true)}
             >
-              <Edit3 className="h-4 w-4" />
-              <span className="">แก้ไข</span>
+              <FolderOpen className="h-4 w-4" />
+              <span className="">ย้าย</span>
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2 h-9"
-            title="ดูตัวอย่าง"
-            onClick={() => setPreviewDocumentId(document._id)}
-          >
-            <Eye className="h-4 w-4" />
-            <span className="">ดูตัวอย่าง</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2 h-9"
-            title="ย้ายไปโฟลเดอร์"
-           onClick={() => setIsMoveToFolderOpen(true)}
-          >
-            <FolderOpen className="h-4 w-4" />
-            <span className="">ย้าย</span>
-          </Button>
-          {isOwner && (
+            {isOwner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20"
+                title="ย้ายไปถังขยะ"
+                onClick={handleDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="">ย้ายไปถังขยะ</span>
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start gap-2 h-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/20"
+              title="กู้คืน"
+              onClick={handleRestore}
+            >
+              <FolderOpen className="h-4 w-4" />
+              <span className="">กู้คืน</span>
+            </Button>
             <Button
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20"
-              title="ลบ"
-              onClick={handleDelete}
+              title="ลบอย่างถาวร"
+              onClick={handlePermanentDelete}
             >
               <Trash2 className="h-4 w-4" />
-              <span className="">ลบ</span>
+              <span className="">ลบอย่างถาวร</span>
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ScrollArea className="flex-1">
@@ -209,7 +243,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               <span className="text-sm font-medium">วันที่อัปโหลด</span>
             </div>
             <p className="text-slate-900 dark:text-slate-100 text-sm pl-6">
-              {formatRelative(new Date(document._creationTime), new Date())}
+              {formatRelative(new Date(document._creationTime), new Date(), {
+                locale: th
+              })}
             </p>
           </div>
 

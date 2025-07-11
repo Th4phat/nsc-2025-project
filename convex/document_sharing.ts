@@ -13,8 +13,6 @@ export const shareDocument = mutation({
             v.union(
                 v.literal("view"),
                 v.literal("download"),
-                v.literal("comment"),
-                v.literal("edit_metadata"),
                 v.literal("resend"),
             ),
         ),
@@ -136,8 +134,6 @@ export const getSharedUsersForDocument = query({
                 v.union(
                     v.literal("view"),
                     v.literal("download"),
-                    v.literal("comment"),
-                    v.literal("edit_metadata"),
                     v.literal("resend")
                 )
             ),
@@ -175,8 +171,6 @@ export const getUserDocumentPermissions = query({
         v.union(
             v.literal("view"),
             v.literal("download"),
-            v.literal("comment"),
-            v.literal("edit_metadata"),
             v.literal("resend")
         )
     ),
@@ -195,7 +189,7 @@ export const getUserDocumentPermissions = query({
 
         // If the user is the owner, they have all permissions
         if (document.ownerId === userId) {
-            return ["view", "download", "comment", "edit_metadata", "resend"] as ("view" | "download" | "comment" | "edit_metadata" | "resend")[];
+            return ["view", "download", "resend"] as ("view" | "download" | "resend")[];
         }
 
         // Check for specific permissions granted through sharing
@@ -529,7 +523,7 @@ export const listSharedDocuments = query({
         const sharedDocuments = [];
         for (const share of sharedDocumentShares) {
             const document = await ctx.db.get(share.documentId);
-            if (document) {
+            if (document && document.status === "completed") { // Only return active documents
                 sharedDocuments.push({
                     ...document,
                     sharerId: share.sharerId,

@@ -64,10 +64,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isActive: pathname === "/dashboard" && searchParams.get("mode") === "shared",
       },
       {
-        name: "เอกสารฉัน",
+        name: "เอกสารของฉัน",
         url: "/dashboard?mode=own",
         icon: Files,
         isActive: pathname === "/dashboard" && searchParams.get("mode") === "own",
+      },
+      {
+        name: "ถังขยะ",
+        url: "/dashboard?mode=trash",
+        icon: Trash2,
+        isActive: pathname === "/dashboard" && searchParams.get("mode") === "trash",
       },
     ],
   };
@@ -154,7 +160,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {/* <NavMain items={topLevelItems} label="เอกสาร" /> */}
-        <NavProjects projects={data.projects} label={"เอกสาร"} />
+        <NavProjects projects={data.projects} label={"ทั่วไป"} />
         <NavMain items={aiCategoryNavItems} label="หมวดหมู่ AI" />
         <NavMain items={folderItems} label="โฟลเดอร์" />
         {adminNavItems.length > 0 && <NavProjects projects={adminNavItems} label="อื่น ๆ" />}

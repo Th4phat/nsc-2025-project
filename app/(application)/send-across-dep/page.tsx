@@ -83,7 +83,7 @@ const departments =
       <div className="p-4">
         <h1 className="text-2xl font-bold mb-4">ปฏิเสธการเข้าถึง</h1>
         <p>คุณไม่มีสิทธิ์ที่จำเป็นในการเข้าถึงหน้านี้</p>
-        <Toaster />
+        <Toaster richColors/>
       </div>
     );
   }
@@ -231,7 +231,7 @@ const departments =
                 </DialogContent>
             </Dialog>
 
-            <Toaster />
+            <Toaster richColors/>
         </div>
 
   );

@@ -238,7 +238,7 @@ export default function SendAcrossOrgPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <Toaster />
+            <Toaster richColors/>
         </div>
   );
 }

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Sarabun } from "next/font/google";
 import "./globals.css";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
+import { Toaster } from "sonner";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -53,6 +54,7 @@ export default function RootLayout({
         <body
           className={`${sarabun.className} antialiased`}
         >
+          
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </body>
       </html>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { Button } from "../../../components/ui/button";
 import {
@@ -58,10 +58,16 @@ export default function ManageUserPage() {
     const updateControlledDepartmentsMutation = useMutation(
         api.user_management.updateControlledDepartments,
     );
+    const createUserMutation = useMutation(api.user_management.createUser);
+    const batchCreateUsersAction = useAction(api.user_management.batchCreateUsers);
+    const deleteUserMutation = useMutation(api.user_management.deleteUser);
 
     const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
     const [isManageDepartmentsDialogOpen, setIsManageDepartmentsDialogOpen] =
         useState(false);
+    const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
+    const [isBatchCreateUserDialogOpen, setIsBatchCreateUserDialogOpen] = useState(false);
+
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [editFormData, setEditFormData] = useState({
         name: "",
@@ -69,9 +75,18 @@ export default function ManageUserPage() {
         departmentId: "",
         roleId: "",
     });
+    const [newUserData, setNewUserData] = useState({
+        name: "",
+        email: "",
+        password: "",
+        departmentId: "",
+        roleId: "",
+    });
     const [controlledDepartments, setControlledDepartments] = useState<
         Id<"departments">[]
     >([]);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (selectedUser) {
@@ -85,6 +100,17 @@ export default function ManageUserPage() {
         }
     }, [selectedUser]);
 
+    const handleDeleteUser = async (userId: Id<"users">) => {
+        if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้นี้?")) {
+            try {
+                await deleteUserMutation({ userId });
+                alert("ผู้ใช้ถูกลบเรียบร้อยแล้ว!");
+            } catch (error) {
+                alert(`เกิดข้อผิดพลาดในการลบผู้ใช้: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+    };
+
     const handleEditClick = (user: User) => {
         setSelectedUser(user);
         setIsEditUserDialogOpen(true);
@@ -93,6 +119,63 @@ export default function ManageUserPage() {
     const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { id, value } = e.target;
         setEditFormData((prev) => ({ ...prev, [id]: value }));
+    };
+
+    const handleNewUserFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { id, value } = e.target;
+        setNewUserData((prev) => ({ ...prev, [id]: value }));
+    };
+
+    const handleCreateUser = async () => {
+        if (!newUserData.name || !newUserData.email || !newUserData.password || !newUserData.departmentId || !newUserData.roleId) {
+            alert("Please fill all fields.");
+            return;
+        }
+        try {
+            await createUserMutation({
+                name: newUserData.name,
+                email: newUserData.email,
+                password: newUserData.password,
+                departmentId: newUserData.departmentId as Id<"departments">,
+                roleId: newUserData.roleId as Id<"roles">,
+            });
+            alert("User created successfully!");
+            setIsCreateUserDialogOpen(false);
+            setNewUserData({ name: "", email: "", password: "", departmentId: "", roleId: "" });
+        } catch (error) {
+            alert(`Error creating user: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setCsvFile(file);
+        }
+    };
+
+    const handleBatchCreateUsers = async () => {
+        if (!csvFile) {
+            alert("Please select a CSV file.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const csvData = e.target?.result as string;
+            try {
+                await batchCreateUsersAction({ csvData });
+                alert("Users batch created successfully!");
+                setIsBatchCreateUserDialogOpen(false);
+                setCsvFile(null);
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
+            } catch (error) {
+                alert(`Error batch creating users: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        };
+        reader.readAsText(csvFile);
     };
 
     const handleSelectChange = (id: string, value: string) => {
@@ -168,7 +251,19 @@ export default function ManageUserPage() {
                 */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-2xl font-bold">จัดการผู้ใช้</CardTitle>
+                        <CardTitle className="text-2xl font-bold flex justify-between items-center">
+                            จัดการผู้ใช้
+                            {permissions.includes("user:create") && (
+                                <div className="flex gap-2">
+                                    <Button onClick={() => setIsCreateUserDialogOpen(true)} size="sm">
+                                        สร้างผู้ใช้
+                                    </Button>
+                                    <Button onClick={() => setIsBatchCreateUserDialogOpen(true)} size="sm" variant="outline">
+                                        นำเข้าจาก CSV
+                                    </Button>
+                                </div>
+                            )}
+                        </CardTitle>
                         <CardDescription>
                             ดู แก้ไข และจัดการบทบาทและสิทธิ์ของผู้ใช้
                         </CardDescription>
@@ -211,6 +306,16 @@ export default function ManageUserPage() {
                                                     <Button onClick={() => handleEditClick(user)} size="sm">
                                                         แก้ไข
                                                     </Button>
+                                                    {permissions.includes("user:delete:any") && (
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteUser(user._id)}
+                                                            className="ml-2"
+                                                        >
+                                                            ลบ
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -359,6 +464,136 @@ export default function ManageUserPage() {
                     </DialogContent>
                 </Dialog>
             )}
+
+            {/* Create User Dialog */}
+            <Dialog
+                open={isCreateUserDialogOpen}
+                onOpenChange={setIsCreateUserDialogOpen}
+            >
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>สร้างผู้ใช้ใหม่</DialogTitle>
+                        <DialogDescription>
+                            กรอกรายละเอียดเพื่อสร้างผู้ใช้ใหม่
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                                ชื่อ
+                            </Label>
+                            <Input
+                                id="name"
+                                value={newUserData.name}
+                                onChange={handleNewUserFormChange}
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="email" className="text-right">
+                                อีเมล
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                value={newUserData.email}
+                                onChange={handleNewUserFormChange}
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="password" className="text-right">
+                                รหัสผ่าน
+                            </Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                value={newUserData.password}
+                                onChange={handleNewUserFormChange}
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="departmentId" className="text-right">
+                                แผนก
+                            </Label>
+                            <Select
+                                onValueChange={(value) => setNewUserData((prev) => ({ ...prev, departmentId: value }))}
+                                value={newUserData.departmentId}
+                            >
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="เลือกแผนก" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {departments?.map((dept) => (
+                                        <SelectItem key={dept._id} value={dept._id}>
+                                            {dept.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="roleId" className="text-right">
+                                บทบาท
+                            </Label>
+                            <Select
+                                onValueChange={(value) => setNewUserData((prev) => ({ ...prev, roleId: value }))}
+                                value={newUserData.roleId}
+                            >
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="เลือกบทบาท" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {roles?.map((role) => (
+                                        <SelectItem key={role._id} value={role._id}>
+                                            {role.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleCreateUser}>สร้าง</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Batch Create User Dialog */}
+            <Dialog
+                open={isBatchCreateUserDialogOpen}
+                onOpenChange={setIsBatchCreateUserDialogOpen}
+            >
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>นำเข้าผู้ใช้จาก CSV</DialogTitle>
+                        <DialogDescription>
+                            อัปโหลดไฟล์ CSV เพื่อสร้างผู้ใช้จำนวนมาก
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="csvFile" className="text-right">
+                                ไฟล์ CSV
+                            </Label>
+                            <Input
+                                id="csvFile"
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileChange}
+                                className="col-span-3"
+                                ref={fileInputRef}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleBatchCreateUsers} disabled={!csvFile}>
+                            นำเข้า
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -1,8 +1,18 @@
 import { v } from "convex/values";
 import { queryWithAuth, mutationWithAuth } from "./auth";
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import {
+  query,
+  mutation,
+  internalMutation,
+  action,
+  internalQuery,
+  internalAction,
+} from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { createAccount, getAuthUserId } from "@convex-dev/auth/server";
+import { ConvexError } from "convex/values";
+import Papa from "papaparse";
 
 /**
  * Get all users with their associated department and role names.
@@ -218,5 +228,255 @@ export const getAuthenticatedUserId = internalMutation({
       .withIndex("by_email", (q) => q.eq("email", identity.email!))
       .unique();
     return user?._id;
+  },
+});
+
+/**
+ * Internal mutation to create a new user.
+ * Handles user creation via Convex Auth and updates the user's document with additional details.
+ */
+export const internalCreateUser = internalMutation({
+  args: {
+    userId: v.id("users"),
+    name: v.string(),
+    departmentId: v.id("departments"),
+    roleId: v.id("roles"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      name: args.name,
+      departmentId: args.departmentId,
+      roleId: args.roleId,
+    });
+    return null;
+  },
+});
+
+export const createAccountAndUser = internalAction({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    password: v.string(),
+    departmentId: v.id("departments"),
+    roleId: v.id("roles"),
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    const { user: newUserDoc } = await createAccount(ctx, {
+      provider: "password",
+      account: {
+        id: args.email,
+        secret: args.password,
+      },
+      profile: {
+        email: args.email,
+      },
+      shouldLinkViaEmail: false,
+      shouldLinkViaPhone: false,
+    });
+
+    await ctx.runMutation(internal.user_management.internalCreateUser, {
+      userId: newUserDoc._id,
+      name: args.name,
+      departmentId: args.departmentId,
+      roleId: args.roleId,
+    });
+
+    return newUserDoc._id;
+  },
+});
+
+/**
+ * Internal query to check if a user has a specific permission.
+ */
+export const checkPermission = internalQuery({
+  args: {
+    userId: v.id("users"),
+    permission: v.string(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user || !user.roleId) {
+      return false;
+    }
+    const role = await ctx.db.get(user.roleId);
+    if (!role || !role.permissions) {
+      return false;
+    }
+    return role.permissions.includes(args.permission);
+  },
+});
+
+/**
+ * Public mutation to create a new user.
+ * Requires "user:create" permission.
+ */
+export const createUser = mutation({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    password: v.string(),
+    departmentId: v.id("departments"),
+    roleId: v.id("roles"),
+  },
+  returns: v.null(), // Returns null because creation is now asynchronous
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    const hasPermission = await ctx.runQuery(internal.user_management.checkPermission, {
+      userId,
+      permission: "user:create",
+    });
+    if (!hasPermission) {
+      throw new ConvexError("Unauthorized: User does not have 'user:create' permission.");
+    }
+
+    // Schedule the action to run asynchronously
+    await ctx.scheduler.runAfter(0, internal.user_management.createAccountAndUser, args);
+    return null;
+  },
+});
+
+/**
+ * Public action to batch create users from CSV data.
+ * Requires "user:create" permission.
+ */
+export const batchCreateUsers = action({
+  args: {
+    csvData: v.string(),
+  },
+  returns: v.array(v.id("users")),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("Not authenticated");
+
+    const hasPermission = await ctx.runQuery(internal.user_management.checkPermission, {
+      userId,
+      permission: "user:create",
+    });
+    if (!hasPermission) {
+      throw new ConvexError("Unauthorized: User does not have 'user:create' permission.");
+    }
+
+    const parsedData = Papa.parse(args.csvData, {
+      header: true,
+      skipEmptyLines: true,
+    }).data as Array<{
+      name: string;
+      email: string;
+      password: string;
+      departmentName: string;
+      roleName: string;
+    }>;
+
+    const createdUserIds: Id<"users">[] = [];
+
+    // Fetch all departments and roles to map names to IDs
+    const departments = await ctx.runQuery(internal.user_management.getAllDepartments, {});
+    const roles = await ctx.runQuery(internal.user_management.getAllRoles, {});
+
+    for (const row of parsedData) {
+      const department = departments.find((d: Doc<"departments">) => d.name === row.departmentName);
+      const role = roles.find((r: Doc<"roles">) => r.name === row.roleName);
+
+      if (!department) {
+        console.warn(`Department not found for name: ${row.departmentName}. Skipping user ${row.name}.`);
+        continue;
+      }
+      if (!role) {
+        console.warn(`Role not found for name: ${row.roleName}. Skipping user ${row.name}.`);
+        continue;
+      }
+
+      const newUserId = await ctx.runAction(internal.user_management.createAccountAndUser, {
+        name: row.name,
+        email: row.email,
+        password: row.password,
+        departmentId: department._id,
+        roleId: role._id,
+      });
+      createdUserIds.push(newUserId);
+    }
+
+    return createdUserIds;
+  },
+});
+
+// Internal queries to fetch all departments and roles for batch creation
+export const getAllDepartments = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("departments"),
+      name: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    return await ctx.db.query("departments").collect();
+  },
+});
+
+export const getAllRoles = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("roles"),
+      name: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    return await ctx.db.query("roles").collect();
+  },
+});
+
+/**
+ * Delete a user.
+ * Accessible only by users with 'user:delete' permission (admin role).
+ */
+export const deleteUser = mutationWithAuth(["user:delete:any"])({
+  args: {
+    userId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { userId } = args;
+
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Delete associated profile if it exists
+    if (user.profileId) {
+      await ctx.db.delete(user.profileId);
+    }
+
+    // Delete the user
+    await ctx.db.delete(userId);
+
+    // Log the action to auditLogs
+    const actor = await ctx.auth.getUserIdentity();
+    if (actor) {
+      const actorUser = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", actor.email!))
+        .unique();
+      if (actorUser) {
+        await ctx.db.insert("auditLogs", {
+          actorId: actorUser._id,
+          action: "user.delete",
+          targetTable: "users",
+          targetId: userId,
+          details: {
+            userName: user.name,
+            userEmail: user.email,
+          },
+        });
+      }
+    }
+    return null;
   },
 });

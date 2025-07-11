@@ -4,11 +4,15 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast, Toaster } from "sonner";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
   const router = useRouter();
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -19,151 +23,105 @@ export default function SignIn() {
     setError(null)
 
     const formData = new FormData(e.target as HTMLFormElement)
-    formData.set("flow", flow)
+    formData.set("flow", "signIn")
     formData.set("redirectTo", "/dashboard")
 
     try {
       await signIn("password", formData);
       router.push("/dashboard");
     } catch (error: any) {
-      setError(error.message || "An unexpected error occurred");
-      console.error(error);
+      toast.error("กรุณาใส่อีเมลและรหัสผ่านที่ถูกต้อง");
+      // console.error(error);
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <Lock className="w-8 h-8 text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <Toaster richColors/>
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mx-auto">
+            <Lock className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-            {flow === "signIn" ? "ยินดีต้อนรับ" : "Create account"}
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">
-            {flow === "signIn"
-              ? "เข้าสู่ระบบเพื่อเข้าหน้าแดชบอร์ด"
-              : "Sign up to get started"}
-          </p>
-        </div>
-
-        {/* Form Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">
+          <CardTitle className="text-3xl font-bold text-foreground">
+            ยินดีต้อนรับ
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            เข้าสู่ระบบเพื่อเข้าหน้าแดชบอร์ด
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
             <div className="space-y-2">
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                อีเมลองค์กร
-              </label>
+              <Label htmlFor="email">อีเมลองค์กร</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
                   id="email"
                   name="email"
                   type="email"
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="ป้อนอีเมลตรงนี้..."
+                  className="pl-10"
                 />
               </div>
             </div>
 
-            {/* Password Field */}
             <div className="space-y-2">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                รหัสผ่าน
-              </label>
+              <Label htmlFor="password">รหัสผ่าน</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  className="w-full pl-10 pr-12 py-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="ใส่รหัสผ่านตรงนี้..."
+                  className="pl-10 pr-12"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
+                    <EyeOff className="w-4 h-4" />
                   ) : (
-                    <Eye className="w-5 h-5" />
+                    <Eye className="w-4 h-4" />
                   )}
-                </button>
+                </Button>
               </div>
             </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:cursor-not-allowed"
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Processing...
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  กำลังเข้าสู่ระบบ...
                 </>
               ) : (
-                <>{flow === "signIn" ? "เข้าสู่ระบบ" : "Create account"}</>
+                <>เข้าสู่ระบบ</>
               )}
-            </button>
+            </Button>
           </form>
-
-          {/* Toggle Flow */}
-          <div className="mt-6 text-center">
-            <p className="text-slate-600 dark:text-slate-400">
-              {flow === "signIn"
-                ? "Don't have an account?"
-                : "Already have an account?"}{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setFlow(flow === "signIn" ? "signUp" : "signIn");
-                  setError(null);
-                }}
-                className="text-blue-600 dark:text-blue-400 font-semibold hover:underline focus:outline-none focus:underline transition-colors"
-              >
-                {flow === "signIn" ? "Sign up" : "Sign in"}
-              </button>
-            </p>
-          </div>
-        </div>
+        </CardContent>
 
         {/* Footer */}
-        <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">
+        {/* <p className="text-center text-sm text-muted-foreground">
           By continuing, you agree to our{" "}
-          <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">
-            Terms of Service
-          </a>{" "}
+          <Button variant="link" className="px-0" asChild>
+            <a href="#">Terms of Service</a>
+          </Button>{" "}
           and{" "}
-          <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">
-            Privacy Policy
-          </a>
-        </p>
-      </div>
+          <Button variant="link" className="px-0" asChild>
+            <a href="#">Privacy Policy</a>
+          </Button>
+        </p> */}
+      </Card>
     </div>
   );
 }

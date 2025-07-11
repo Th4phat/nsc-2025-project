@@ -232,6 +232,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const documentDetails = useQuery(api.document_crud.getDocumentDetails, {
     documentId,
   });
+  const currentUserId = useQuery(api.users.getCurrentUserID);
 
   // --- CONVEX MUTATIONS AND ACTIONS ---
   const shareDocumentMutation = useMutation(api.document_sharing.shareDocument);
@@ -259,8 +260,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       }
     });
 
-    return Array.from(usersMap.values());
-  }, [sharedUsersData, allUsersData]);
+    return Array.from(usersMap.values()).filter(
+      user => user._id !== currentUserId,
+    );
+  }, [sharedUsersData, allUsersData, currentUserId]);
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -298,6 +301,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // --- CURRENT USER ID ---
+  const currentUser = useQuery(api.users.getCurrentUser);
 
   // --- MEMOIZED HANDLERS ---
   const handleToggleRecipient = useCallback((userId: Id<"users">) => {
@@ -364,7 +370,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         setSelectedRecipientsWithPermissions(prevSelected => {
           const existingIds = new Set(prevSelected.map(r => r.userId));
           const newRecipients = suggestedIds
-            .filter((id: Id<"users">) => !existingIds.has(id))
+            .filter(
+              (id: Id<"users">) =>
+                !existingIds.has(id) && id !== currentUserId,
+            )
             .map((id: Id<"users">) => ({
               userId: id,
               permissions: DEFAULT_PERMISSIONS,
@@ -495,7 +504,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   user={user}
                   isSelected={isSelected(user._id)}
                   onToggle={handleToggleRecipient}
-                  isSubmitting={isSubmitting}
+                  isSubmitting={isSubmitting || user._id === currentUserId}
                 />
               ))}
             </div>

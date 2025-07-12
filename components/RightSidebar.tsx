@@ -349,10 +349,10 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
            <DialogTitle>ย้ายไปยังโฟล์เดอร์</DialogTitle>
          </DialogHeader>
          <div className="grid gap-4 py-4">
-           <Label>โปรดเลือกโฟล์เดอร์:</Label>
+           <Label>โปรดเลือกโฟล์เดอร์</Label>
            <RadioGroup onValueChange={(value) => setSelectedFolderId(value as Id<"folders">)}>
              {folders?.map(folder => (
-               <div key={folder._id} className="flex items-center space-x-2">
+               <div key={folder._id} className="flex items-center space-x-2 p-2">
                  <RadioGroupItem value={folder._id} id={folder._id} />
                  <Label htmlFor={folder._id}>{folder.name}</Label>
                </div>

@@ -11,6 +11,7 @@ export const getUserRoleAndPermissions = internalQuery({
   args: { userId: v.id("users") },
   returns: v.object({
     roleName: v.string(),
+    rank: v.number(), // Add rank to the return type
     permissions: v.array(v.string()),
     controlledDepartments: v.optional(v.array(v.id("departments"))),
   }),
@@ -28,6 +29,7 @@ export const getUserRoleAndPermissions = internalQuery({
     }
     return {
       roleName: role.name,
+      rank: role.rank, // Include rank from the role
       permissions: role.permissions,
       controlledDepartments: user.controlledDepartments,
     };
@@ -85,30 +87,34 @@ export const sendToDepartments = mutation({
       throw new Error("User not found");
     }
 
-    const { roleName, permissions, controlledDepartments } = await ctx.runQuery(
+    const { roleName, rank, permissions, controlledDepartments } = await ctx.runQuery(
       internal.document_distribution.getUserRoleAndPermissions,
       { userId: user._id },
     );
 
+    const isHigherRank = rank >= 2; // Director or System Administrator
     const canSendToDepartment = permissions.includes("document:send:department");
-    const isDirector = roleName === "Director";
-    const isHeadOfDepartment = roleName === "Head of Department";
+    const canSendToCompany = permissions.includes("document:send:company");
 
-    if (!canSendToDepartment && !isDirector) {
+    if (!canSendToDepartment && !canSendToCompany && !isHigherRank) {
       throw new Error("Unauthorized: Insufficient permissions to send documents to departments.");
     }
 
-    if (isHeadOfDepartment && controlledDepartments) {
-      const unauthorizedDepartments = args.departmentIds.filter(
-        (depId) => !controlledDepartments.includes(depId),
-      );
-      if (unauthorizedDepartments.length > 0) {
-        throw new Error(
-          `Unauthorized: Cannot send to departments outside controlled scope: ${unauthorizedDepartments.join(", ")}`,
+    // If the user is not higher rank, apply controlled department checks
+    if (!isHigherRank) {
+      // If the user can send to departments but not to the whole company, they are a Head of Department
+      if (canSendToDepartment && !canSendToCompany && controlledDepartments) {
+        const unauthorizedDepartments = args.departmentIds.filter(
+          (depId) => !controlledDepartments.includes(depId),
         );
+        if (unauthorizedDepartments.length > 0) {
+          throw new Error(
+            `Unauthorized: Cannot send to departments outside controlled scope: ${unauthorizedDepartments.join(", ")}`,
+          );
+        }
+      } else if (canSendToDepartment && !canSendToCompany && !controlledDepartments) {
+          throw new Error("Unauthorized: Head of Department has no controlled departments defined.");
       }
-    } else if (isHeadOfDepartment && !controlledDepartments) {
-        throw new Error("Unauthorized: Head of Department has no controlled departments defined.");
     }
 
     const users = await ctx.runQuery(internal.document_distribution.getUsersByDepartments, {
@@ -156,13 +162,13 @@ export const sendToOrganization = mutation({
       throw new Error("User not found");
     }
 
-    const { roleName } = await ctx.runQuery(
+    const { permissions } = await ctx.runQuery(
       internal.document_distribution.getUserRoleAndPermissions,
       { userId: user._id },
     );
 
-    if (roleName !== "Director") {
-      throw new Error("Unauthorized: Only directors can send documents to the entire organization.");
+    if (!permissions.includes("document:send:company")) {
+      throw new Error("Unauthorized: Only users with 'document:send:company' permission can send documents to the entire organization.");
     }
 
     const users = await ctx.runQuery(internal.document_distribution.getAllUsers, {});

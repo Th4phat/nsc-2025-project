@@ -30,7 +30,7 @@ import {
 
 export default function ProfilePage() {
   // Fetch user data and get the update mutation function from Convex
-  const userData = useQuery(api.users.getCurrentUser);
+  const profileData = useQuery(api.users.getMyProfile);
   const updateUserProfile = useMutation(api.users.updateUserProfile);
   // Get the loading state directly from the mutation hook
 
@@ -38,9 +38,21 @@ export default function ProfilePage() {
     phone: "",
     bio: "",
     title: "",
-    location: "",
+    location: "", // This maps to 'address' in the schema
     website: "",
   });
+
+  useEffect(() => {
+    if (profileData?.profile) {
+      setProfile({
+        phone: profileData.profile.phone || "",
+        bio: profileData.profile.bio || "",
+        title: profileData.profile.title || "",
+        location: profileData.profile.address || "", // Map 'address' from schema to 'location' in state
+        website: profileData.profile.website || "",
+      });
+    }
+  }, [profileData]);
 
   const handleProfileChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -61,27 +73,27 @@ export default function ProfilePage() {
         location: profile.location,
         website: profile.website,
       });
-      toast.success("Profile updated successfully!");
+      toast.success("อัปเดตโปรไฟล์เสร็จสิ้น");
     } catch (error) {
-      console.error("Failed to update profile:", error);
-      toast.error("An error occurred while updating your profile.");
+      // console.error("Failed to update profile:", error);
+      toast.error("เกิดปัญหาขึ้น");
     }
   };
 
   // Show a loading state while fetching initial data
-  if (userData === undefined) {
+  if (profileData === undefined) {
     return (
       <div className="flex items-center justify-center h-full">
-        <h1 className="text-2xl font-bold text-gray-500">Loading...</h1>
+        <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
       </div>
     );
   }
 
   // Handle case where user is not logged in
-  if (userData === null) {
+  if (profileData === null || profileData.user === null) {
     return (
       <div className="flex h-screen items-center justify-center">
-        Please log in to view your profile.
+        โปรดเข้าสู่ระบบ
       </div>
     );
   }
@@ -110,7 +122,7 @@ export default function ProfilePage() {
               <AvatarImage src="/api/placeholder/80/80" alt="Profile" />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-xl font-semibold text-white">
                 {
-                  userData.name?.slice(0,2)
+                  profileData.user?.name?.slice(0,2)
                 }
               </AvatarFallback>
             </Avatar>
@@ -118,12 +130,12 @@ export default function ProfilePage() {
               size="icon"
               className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full shadow-lg"
             >
-              <Camera className="h-4 w-4" />  
+              <Camera className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-              {userData?.name}
+              {profileData.user?.name}
             </h1>
             <p className="text-lg text-slate-600 dark:text-slate-400">
               {profile.title}
@@ -156,10 +168,10 @@ export default function ProfilePage() {
             <CardContent className="space-y-6 p-8">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="username">เบอร์โทรศัพท์</Label>
+                  <Label htmlFor="phone">เบอร์โทรศัพท์</Label>
                   <Input
-                    id="username"
-                    name="username"
+                    id="phone"
+                    name="phone"
                     value={profile.phone}
                     onChange={handleProfileChange}
                   />
@@ -175,23 +187,32 @@ export default function ProfilePage() {
                   id="email"
                   name="email"
                   type="email"
-                  value={userData.email}
+                  value={profileData.user?.email}
                   readOnly
                   disabled
                   className="cursor-not-allowed bg-slate-100 dark:bg-slate-800"
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="title">ตำแหน่ง</Label>
+                <Input
+                  id="title"
+                  name="title"
+                  value={profile.title}
+                  onChange={handleProfileChange}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="location">ที่อยู่</Label>
-                  <Input
-                    id="location"
-                    name="location"
-                    value={profile.location}
-                    onChange={handleProfileChange}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">ที่อยู่</Label>
+                <Input
+                  id="location"
+                  name="location"
+                  value={profile.location}
+                  onChange={handleProfileChange}
+                />
+              </div>
 
 
               <div className="space-y-2">

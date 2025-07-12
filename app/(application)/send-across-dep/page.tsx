@@ -38,14 +38,14 @@ export default function SendAcrossDepPage() {
   );
 
   const ownedDocuments = useQuery(api.document.listOwnedDocuments);
+const allDepartments = useQuery(api.departments.listDepartments);
+
   const controlledDepartments = useQuery(
     api.departments.getDepartmentsByIds,
     userRoleAndPermissions?.controlledDepartments
       ? { departmentIds: userRoleAndPermissions.controlledDepartments }
       : "skip"
   );
-
-  const departments = controlledDepartments;
 
   const sendToDepartmentsMutation = useMutation(
     api.document_distribution.sendToDepartments
@@ -59,13 +59,24 @@ export default function SendAcrossDepPage() {
   >([]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
-  if (currentUser === undefined || userRoleAndPermissions === undefined || ownedDocuments === undefined || controlledDepartments === undefined) {
+  const isHigherRank = (userRoleAndPermissions?.rank ?? 0) >= 2; // Use rank for higher-rank check
+  const hasPermissionOrIsHigherRank = userRoleAndPermissions?.permissions?.includes("document:send:department") || isHigherRank;
+
+  const departments = isHigherRank ? allDepartments : controlledDepartments;
+
+  if (
+    currentUser === undefined ||
+    userRoleAndPermissions === undefined ||
+    ownedDocuments === undefined ||
+    (isHigherRank && allDepartments === undefined) ||
+    (!isHigherRank && controlledDepartments === undefined)
+  ) {
     return <div className="flex items-center justify-center h-full">
         <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
       </div>
   }
 
-  if (!currentUser || !(userRoleAndPermissions?.permissions?.includes("document:send:department"))) {
+  if (!currentUser || !hasPermissionOrIsHigherRank) {
     return (
       <div className="p-4">
         <h1 className="text-2xl font-bold mb-4">ปฏิเสธการเข้าถึง</h1>

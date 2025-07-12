@@ -73,10 +73,12 @@ export default defineSchema({
     aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
     aiProcessingError: v.optional(v.string()),
     classified: v.optional(v.boolean()),
+    folderId: v.optional(v.id("folders")),
   })
     .index("by_ownerId", ["ownerId"])
     .index("by_status", ["status"])
-    .index("by_aiCategory", ["aiCategories"]),
+    .index("by_aiCategory", ["aiCategories"])
+    .index("by_folderId", ["folderId"]),
 
   documentFolders: defineTable({
     documentId: v.id("documents"),

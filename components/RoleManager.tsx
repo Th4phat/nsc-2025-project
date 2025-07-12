@@ -207,7 +207,7 @@ export function RoleManager() {
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="permissions" className="text-right">
-                สิทธิ
+                สิทธิ์
               </Label>
               <div className="col-span-3 grid grid-cols-2 gap-2">
                 {ALL_PERMISSIONS.map((permission) => (

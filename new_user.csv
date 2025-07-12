@@ -1,0 +1,3 @@
+name,email,password,departmentName,roleName
+John Doe,john.doe@test.com,password123,Sales,Employee
+Jane Smith,jane.smith@test.com,securepass,Marketing,Manager

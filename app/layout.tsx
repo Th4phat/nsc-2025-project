@@ -55,7 +55,7 @@ export default function RootLayout({
           className={`${sarabun.className} antialiased`}
         >
           
-          <ConvexClientProvider>{children}</ConvexClientProvider>
+          <ConvexClientProvider><Toaster richColors />{children}</ConvexClientProvider>
         </body>
       </html>
     </ConvexAuthNextjsServerProvider>

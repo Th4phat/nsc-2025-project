@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DialogDescription } from "@radix-ui/react-dialog";
 
 interface Department {
   _id: Id<"departments">;
@@ -62,11 +63,11 @@ export function DepartmentManager() {
     
   };
 
-  const handleArchiveClick = async (id: Id<"departments">) => {
-    if (window.confirm("ยืนยันการ archive?")) {
-    await archiveDepartment({ id });
-    }
-  };
+  // const handleArchiveClick = async (id: Id<"departments">) => {
+  //   if (window.confirm("ยืนยันการ archive?")) {
+  //   await archiveDepartment({ id });
+  //   }
+  // };
 
   const handleSubmit = async () => {
     if (currentDepartment) {
@@ -113,14 +114,14 @@ export function DepartmentManager() {
                 >
                   แก้ไข
                 </Button>
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   className="mr-2"
                   onClick={() => handleArchiveClick(department._id)}
                 >
                   เก็บ
-                </Button>
+                </Button> */}
                 <Button
                   variant="destructive"
                   size="sm"
@@ -138,8 +139,11 @@ export function DepartmentManager() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {currentDepartment ? "Edit Department" : "Add Department"}
+              {currentDepartment ? "แก้ไขข้อมูลแผนก" : "เพิ่มแผนกใหม่"}
             </DialogTitle>
+            <DialogDescription>
+              
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -170,7 +174,7 @@ export function DepartmentManager() {
               ยกเลิก
             </Button>
             <Button onClick={handleSubmit}>
-              {currentDepartment ? "Save Changes" : "Add Department"}
+              {currentDepartment ? "บันทึก" : "เพิ่มแผนกใหม่"}
             </Button>
           </DialogFooter>
         </DialogContent>

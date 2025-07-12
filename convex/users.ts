@@ -45,6 +45,7 @@ export const getUserRoleAndControlledDepartments = query({
   returns: v.union(
     v.object({
       roleName: v.string(),
+      rank: v.number(), // Add rank to the return type
       permissions: v.array(v.string()),
       controlledDepartments: v.optional(v.array(v.id("departments"))),
     }),
@@ -52,6 +53,7 @@ export const getUserRoleAndControlledDepartments = query({
   ),
   handler: async (ctx): Promise<{
     roleName: string;
+    rank: number; // Add rank to the return type
     permissions: string[];
     controlledDepartments?: Id<"departments">[];
   } | null> => {
@@ -86,7 +88,7 @@ export const getMyProfile = queryWithAuth(["profile:read:own"])({
 	 },
 });
 
-export const updateUserProfile = mutation( {
+export const updateUserProfile = mutationWithAuth(["profile:update:own"])( {
 	 args: {
 	  //  name: v.string(),
       phone:v.string(),

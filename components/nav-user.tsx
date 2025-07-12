@@ -8,6 +8,7 @@ import {
   LogOut,
   Sparkles,
   UserPen,
+  FolderPen,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
@@ -92,6 +93,12 @@ export function NavUser({
                 โปรไฟล์
                 
               </DropdownMenuItem>
+              </Link>
+              <Link href={"/manage-folders"}>
+                <DropdownMenuItem>
+                  <FolderPen />
+                  จัดการโฟลเดอร์
+                </DropdownMenuItem>
               </Link>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

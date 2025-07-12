@@ -236,12 +236,10 @@ export default function ManageUserPage() {
         <div className="container mx-auto">
             {/* --- Header --- */}
             {/* The sticky header remains for navigation controls. */}
-            <header className="flex sticky top-0 bg-background/95 backdrop-blur-sm z-10 h-16 shrink-0 items-center gap-2 border-b px-4 md:px-6">
-                <SidebarTrigger className="-ml-1" />
-                <Separator orientation="vertical" className="mx-2 h-6" />
-                {/* Future elements like a global search could go here */}
-                
-            </header>
+            <header className="flex sticky top-0 bg-background/95 backdrop-blur-sm z-10 h-16 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mx-2 h-6" />
+          </header>
 
             {/* --- Main Content Area --- */}
             <main className="p-4 md:p-6">
@@ -258,9 +256,9 @@ export default function ManageUserPage() {
                                     <Button onClick={() => setIsCreateUserDialogOpen(true)} size="sm">
                                         สร้างผู้ใช้
                                     </Button>
-                                    <Button onClick={() => setIsBatchCreateUserDialogOpen(true)} size="sm" variant="outline">
+                                    {/* <Button onClick={() => setIsBatchCreateUserDialogOpen(true)} size="sm" variant="outline">
                                         นำเข้าจาก CSV
-                                    </Button>
+                                    </Button> */}
                                 </div>
                             )}
                         </CardTitle>
@@ -411,7 +409,7 @@ export default function ManageUserPage() {
                             </div>
                         </div>
                         <DialogFooter>
-                            {selectedUser.roleName === "Head of Department" && (
+                            
                                 <Button
                                     variant="outline"
                                     onClick={handleManageDepartmentsClick}
@@ -419,7 +417,7 @@ export default function ManageUserPage() {
                                 >
                                     จัดการแผนกที่ควบคุม
                                 </Button>
-                            )}
+                            
                             <Button onClick={handleUpdateUser}>บันทึกการเปลี่ยนแปลง</Button>
                         </DialogFooter>
                     </DialogContent>

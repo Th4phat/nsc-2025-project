@@ -13,6 +13,7 @@ import {
   Users,
   Settings,
   FileText,
+  MoreVertical, // Added for dropdown menu
 } from "lucide-react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -26,11 +27,18 @@ import {
 import { Button } from "./ui/button";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel"; // Import Id
 import { useState } from "react";
 import { Input } from "./ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { NavProjects } from "./nav-projects";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
@@ -42,6 +50,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const folders = useQuery(api.folders.getFolders, {}); // Fetch folders
   const documents = useQuery(api.document.getDocumentsInAllFolders, {}); // Fetch all documents in folders
   const createFolder = useMutation(api.folders.createFolder); // Mutation to create folders
+  const renameFolder = useMutation(api.folders.renameFolder); // Mutation to rename folders
 
   const data = {
     user: {
@@ -79,6 +88,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
   const [newFolderName, setNewFolderName] = useState("");
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false);
+  const [isRenameFolderDialogOpen, setIsRenameFolderDialogOpen] = useState(false);
+  const [folderToRename, setFolderToRename] = useState<Id<"folders"> | null>(null);
+  const [renameFolderName, setRenameFolderName] = useState("");
+  const [folderToDelete, setFolderToDelete] = useState<Id<"folders"> | null>(null);
 
   const handleCreateFolder = async () => {
     if (newFolderName.trim()) {
@@ -89,6 +102,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const hasPermission = (p: string) => permissions?.includes(p);
+
+
+  const handleRenameFolder = async () => {
+    if (folderToRename && renameFolderName.trim()) {
+      await renameFolder({ folderId: folderToRename, newName: renameFolderName });
+      setIsRenameFolderDialogOpen(false);
+      setFolderToRename(null);
+      setRenameFolderName("");
+    }
+  };
 
   // Organize documents under folders
   const folderItems = folders?.map(folder => {
@@ -176,7 +199,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="folderName" className="text-right">
-                  ชื่อโฟลเดอร์
+                  ชื่อ
                 </Label>
                 <Input
                   id="folderName"
@@ -188,12 +211,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </div>
             <DialogFooter>
               <DialogClose asChild>
-                <Button variant="outline">ยกเลิก</Button>
+                <Button variant="outline">Cancel</Button>
               </DialogClose>
-              <Button onClick={handleCreateFolder}>สร้าง</Button>
+              <Button onClick={handleCreateFolder}>Create</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isRenameFolderDialogOpen} onOpenChange={setIsRenameFolderDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>เปลี่ยนชื่อโฟล์เดอร์</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="renameFolderName" className="text-right">
+                  ชื่อใหม่
+                </Label>
+                <Input
+                  id="renameFolderName"
+                  value={renameFolderName}
+                  onChange={(e) => setRenameFolderName(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">ยกเลิก</Button>
+              </DialogClose>
+              <DialogClose asChild>
+                <Button onClick={handleRenameFolder}>เปลี่ยนชื่อ</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </SidebarContent>
       <SidebarFooter>
         <NavUser

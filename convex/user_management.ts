@@ -177,8 +177,8 @@ export const updateControlledDepartments = mutationWithAuth(["user:update:any"])
       throw new Error("User does not have a role assigned.");
     }
     const userRole = await ctx.db.get(user.roleId);
-    if (!userRole || userRole.name !== "Head of Department") {
-      throw new Error("User must have 'Head of Department' role to control departments.");
+    if (!userRole || !userRole.permissions.includes("document:send:department")) {
+      throw new Error("User must have perm to control departments.");
     }
 
     // Validate all department IDs exist

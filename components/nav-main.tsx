@@ -33,6 +33,7 @@ export function NavMain({
       url: string
       documentId?: string; // Add optional documentId
     }[]
+    actions?: React.ReactNode; // Add optional actions prop
   }[],
   label: string,
   onMoveClick?: (documentId: string) => void; // Add optional onMoveClick prop
@@ -53,6 +54,7 @@ export function NavMain({
                 <SidebarMenuButton tooltip={item.title}>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
+                  {item.actions} {/* Render actions here */}
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                 </SidebarMenuButton>
               </CollapsibleTrigger>

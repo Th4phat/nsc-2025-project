@@ -242,3 +242,101 @@ export const updateDocumentCategories = mutation({
     });
   },
 });
+
+export const getAllAiCategories = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    const documents = await ctx.db
+      .query("documents")
+      .filter((q) => q.eq(q.field("ownerId"), userId))
+      .collect();
+
+    const allCategories = new Set<string>();
+    for (const doc of documents) {
+      if (doc.aiCategories) {
+        for (const category of doc.aiCategories) {
+          allCategories.add(category);
+        }
+      }
+    }
+    return Array.from(allCategories);
+  },
+});
+
+export const renameAiCategory = mutation({
+  args: {
+    oldCategoryName: v.string(),
+    newCategoryName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Authenticated user not found.");
+    }
+
+    const documentsToUpdate = await ctx.db
+      .query("documents")
+      .filter((q) => q.eq(q.field("ownerId"), userId))
+      .collect();
+
+    const filteredDocuments = documentsToUpdate.filter(doc =>
+      doc.aiCategories?.includes(args.oldCategoryName)
+    );
+
+    for (const doc of filteredDocuments) {
+      const updatedCategories = doc.aiCategories?.map((cat) =>
+        cat === args.oldCategoryName ? args.newCategoryName : cat
+      );
+      await ctx.db.patch(doc._id, { aiCategories: updatedCategories });
+    }
+
+    await ctx.db.insert("auditLogs", {
+      actorId: userId,
+      action: "aiCategory.rename",
+      targetTable: "documents",
+      targetId: null, // No specific document, applies globally
+      details: { oldName: args.oldCategoryName, newName: args.newCategoryName },
+    });
+  },
+});
+
+export const deleteAiCategory = mutation({
+  args: {
+    categoryName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Authenticated user not found.");
+    }
+
+    const documentsToUpdate = await ctx.db
+      .query("documents")
+      .filter((q) => q.eq(q.field("ownerId"), userId))
+      .collect();
+
+    const filteredDocuments = documentsToUpdate.filter(doc =>
+      doc.aiCategories?.includes(args.categoryName)
+    );
+
+    for (const doc of filteredDocuments) {
+      const updatedCategories = doc.aiCategories?.filter(
+        (cat) => cat !== args.categoryName
+      );
+      await ctx.db.patch(doc._id, { aiCategories: updatedCategories });
+    }
+
+    await ctx.db.insert("auditLogs", {
+      actorId: userId,
+      action: "aiCategory.delete",
+      targetTable: "documents",
+      targetId: null, // No specific document, applies globally
+      details: { categoryName: args.categoryName },
+    });
+  },
+});

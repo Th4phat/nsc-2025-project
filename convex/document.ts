@@ -244,7 +244,7 @@ export const getAllDocuments = query({
         const ownedDocuments = await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
-            .filter((q) => q.eq(q.field("status"), "completed")) // Only return active documents
+            .filter((q) => q.or(q.eq(q.field("status"), "completed"), q.eq(q.field("status"), "processing"))) // Only return active documents
             .collect();
 
         // Get shared documents
@@ -256,7 +256,7 @@ export const getAllDocuments = query({
         const sharedDocuments = [];
         for (const share of sharedDocumentShares) {
             const document = await ctx.db.get(share.documentId);
-            if (document && document.status === "completed") { // Only return active documents
+            if (document && (document.status === "completed" || document.status === "processing")) { // Only return active documents
                 sharedDocuments.push(document);
             }
         }

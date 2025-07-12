@@ -344,7 +344,11 @@ export const getBlobContent = internalAction({
         switch (contentType) {
             case "application/pdf": {
                 const texts = await pdfToText(uint8buff);
-                return { type: "text", content: texts };
+                // Remove non-printable ASCII control characters
+                const cleanedTexts = texts.replace(/[\x00-\x1F\x7F]/g, "");
+                // Apply Unicode Normalization Form C (NFC)
+                const normalizedTexts = cleanedTexts.normalize('NFC');
+                return { type: "text", content: normalizedTexts };
             }
             case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
                 const { value: text } = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });

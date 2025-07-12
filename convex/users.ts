@@ -204,14 +204,10 @@ export const listUsersForShare = query({
 
     // If there's a search query, perform a filtered search
     if (args.searchQuery) {
-      // For simplicity, searching by email. In a real app, you might use a HNSW index for better search.
       users = await ctx.db
         .query("users")
-        .filter((q) =>
-          q.or(
-            q.eq(q.field("email"), args.searchQuery),
-            q.eq(q.field("name"), args.searchQuery)
-          )
+        .withSearchIndex("by_search_query", (q) =>
+          q.search("email", args.searchQuery!)
         )
         .collect();
     } else {

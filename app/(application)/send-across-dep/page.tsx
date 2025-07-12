@@ -27,7 +27,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 export default function SendAcrossDepPage() {
@@ -39,26 +38,14 @@ export default function SendAcrossDepPage() {
   );
 
   const ownedDocuments = useQuery(api.document.listOwnedDocuments);
-  const allDepartments = useQuery(
-    api.departments.listDepartments,
-    userRoleAndPermissions == null || userRoleAndPermissions?.roleName === "Head Of Department"
-      ? "skip"
-      : undefined
-);
+  const controlledDepartments = useQuery(
+    api.departments.getDepartmentsByIds,
+    userRoleAndPermissions?.controlledDepartments
+      ? { departmentIds: userRoleAndPermissions.controlledDepartments }
+      : "skip"
+  );
 
-const controlledDepartments = useQuery(
-  api.departments.getDepartmentsByIds,
-  userRoleAndPermissions == null || userRoleAndPermissions?.roleName !== "Head Of Department" || !userRoleAndPermissions.controlledDepartments
-    ? "skip"
-    : { departmentIds: userRoleAndPermissions.controlledDepartments }
-);
-
-const departments =
-  userRoleAndPermissions == null
-    ? undefined // Still loading user permissions or not found
-    : userRoleAndPermissions.roleName === "Head Of Department"
-      ? controlledDepartments
-      : allDepartments;
+  const departments = controlledDepartments;
 
   const sendToDepartmentsMutation = useMutation(
     api.document_distribution.sendToDepartments
@@ -72,7 +59,7 @@ const departments =
   >([]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
-  if (currentUser === undefined || userRoleAndPermissions === undefined || ownedDocuments === undefined || departments === undefined) {
+  if (currentUser === undefined || userRoleAndPermissions === undefined || ownedDocuments === undefined || controlledDepartments === undefined) {
     return <div className="flex items-center justify-center h-full">
         <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
       </div>
@@ -172,13 +159,13 @@ const departments =
                             {/* --- Step 2: Select Departments --- */}
                             <div className="grid gap-2">
                                 <Label className="font-semibold">2. เลือกแผนก</Label>
-                                {departments.length === 0 ? (
+                                {departments!.length === 0 ? (
                                     <div className="flex items-center justify-center text-sm text-muted-foreground border rounded-lg h-24">
                                         ไม่มีแผนกให้เลือก
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                        {departments.map((dep) => (
+                                        {departments!.map((dep) => (
                                             <Label
                                                 key={dep._id}
                                                 htmlFor={`department-${dep._id}`}

@@ -31,7 +31,8 @@ export default defineSchema({
     .index("by_name", ["name"])
     .index("by_roleId", ["roleId"])
     .index("by_status", ["status"]) // NEW: Index for filtering by status
-    .index("by_departmentId", ["departmentId"]),
+    .index("by_departmentId", ["departmentId"])
+    .searchIndex("by_search_query", { searchField: "email", filterFields: ["name"] }),
 
   profiles: defineTable({
     userId: v.id("users"),

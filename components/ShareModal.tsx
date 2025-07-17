@@ -32,12 +32,11 @@ import {
 } from "lucide-react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Doc, Id } from "@/convex/_generated/dataModel";
+import { Id } from "@/convex/_generated/dataModel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-// --- TYPE DEFINITIONS ---
 type PermissionType = "view" | "download" | "resend";
 type RecipientWithPermissions = {
   userId: Id<"users">;
@@ -50,7 +49,6 @@ type DisplayUser = {
   imageUrl?: string | null;
 };
 
-// --- CONSTANTS ---
 const ALL_PERMISSIONS: PermissionType[] = ["view", "download", "resend"];
 const DEFAULT_PERMISSIONS: PermissionType[] = ["view", "download"];
 
@@ -60,14 +58,12 @@ const PERMISSION_CONFIG = {
   resend: { label: "ส่งต่อ", icon: Send, color: "bg-purple-500" },
 };
 
-// --- PROPS INTERFACES ---
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   documentId: Id<"documents">;
 }
 
-// --- STABLE COMPONENTS (prevent re-renders) ---
 const UserAvatar = React.memo(({ user, size = 8 }: { user: DisplayUser; size?: number }) => (
   <Avatar className={`h-${size} w-${size}`}>
     <AvatarImage src={user.imageUrl ?? undefined} />
@@ -110,7 +106,6 @@ const PermissionButton = React.memo(
   },
 );
 
-// --- MAIN COMPONENT ---
 export const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
@@ -143,26 +138,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       : "skip"
   );
 
-  // --- MUTATIONS ---
   const shareDocument = useMutation(api.document_sharing.shareDocument);
   const unshareDocument = useMutation(api.document_sharing.unshareDocument);
   const generateAISuggestions = useAction(api.document_process.generateAiShareSuggestions);
 
-  // --- MEMOIZED VALUES ---
   const userMap = useMemo(() => {
     const map = new Map<Id<"users">, DisplayUser>();
     sharedUsers?.forEach(su => map.set(su.user._id, su.user));
     searchResults?.forEach(user => map.set(user._id, user));
-    aiSuggestedUsers?.forEach(user => map.set(user._id, user)); // Add AI suggested users to map
+    aiSuggestedUsers?.forEach(user => map.set(user._id, user));
     return map;
-  }, [sharedUsers, searchResults, aiSuggestedUsers]); // Add aiSuggestedUsers to dependencies
+  }, [sharedUsers, searchResults, aiSuggestedUsers]);
 
   const selectedUserIds = useMemo(
     () => new Set(selectedRecipients.map(r => r.userId)),
     [selectedRecipients]
   );
 
-  // --- EFFECTS ---
   useEffect(() => {
     if (sharedUsers) {
       setSelectedRecipients(
@@ -175,10 +167,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   }, [sharedUsers]);
 
   useEffect(() => {
-    if (aiSuggestedUsers && currentUserId) { // Change from documentDetails?.aiSuggestedRecipients to aiSuggestedUsers
-      const aiSuggested = aiSuggestedUsers // Change from documentDetails.aiSuggestedRecipients to aiSuggestedUsers
-        .filter((user: DisplayUser) => user._id !== currentUserId && !selectedUserIds.has(user._id)) // Filter by user._id
-        .map((user: DisplayUser) => ({ // Map user object to RecipientWithPermissions
+    if (aiSuggestedUsers && currentUserId) {
+      const aiSuggested = aiSuggestedUsers 
+        .filter((user: DisplayUser) => user._id !== currentUserId && !selectedUserIds.has(user._id))
+        .map((user: DisplayUser) => ({
           userId: user._id,
           permissions: DEFAULT_PERMISSIONS,
         }));
@@ -187,7 +179,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         setSelectedRecipients(prev => [...prev, ...aiSuggested]);
       }
     }
-  }, [aiSuggestedUsers, currentUserId, selectedUserIds]); // Update dependencies
+  }, [aiSuggestedUsers, currentUserId, selectedUserIds]);
 
   useEffect(() => {
     if (isOpen) {
@@ -196,7 +188,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   }, [isOpen]);
 
-  // --- HANDLERS ---
   const toggleRecipient = useCallback((userId: Id<"users">) => {
     setSelectedRecipients(prev => {
       const exists = prev.find(r => r.userId === userId);
@@ -209,8 +200,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   const removeRecipient = useCallback(async (userId: Id<"users">) => {
     setSelectedRecipients(prev => prev.filter(r => r.userId !== userId));
-    
-    // If was previously shared, unshare immediately
+
     const wasShared = sharedUsers?.some(su => su.user._id === userId);
     if (wasShared) {
       try {
@@ -278,7 +268,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   };
 
-  // --- RENDER HELPERS ---
   const renderSearchResults = () => {
     if (searchTerm.length < 2) {
       return (
@@ -422,7 +411,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Search Section */}
         <div className="p-3 border-b flex-shrink-0 space-y-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -435,7 +423,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             />
           </div>
 
-          {/* AI Suggestions */}
           <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -463,7 +450,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </div>
         </div>
 
-        {/* Content Area */}
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-3 space-y-2">
             {renderSearchResults()}
@@ -471,7 +457,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </div>
         </ScrollArea>
 
-        {/* Footer */}
         <DialogFooter className="p-3 border-t bg-gray-50/50 flex-shrink-0">
           <div className="flex gap-2 w-full">
             <Button

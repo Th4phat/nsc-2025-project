@@ -35,7 +35,6 @@ export function DepartmentManager() {
   const createDepartment = useMutation(api.department_management.createDepartment);
   const updateDepartment = useMutation(api.department_management.updateDepartment);
   const deleteDepartment = useMutation(api.department_management.deleteDepartment);
-  const archiveDepartment = useMutation(api.department_management.archiveDepartment);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDepartment, setCurrentDepartment] = useState<Department | null>(null);
@@ -60,14 +59,9 @@ export function DepartmentManager() {
     if (window.confirm("ยืนยันการลบ?")) {
       await deleteDepartment({ id });
     }
-    
+
   };
 
-  // const handleArchiveClick = async (id: Id<"departments">) => {
-  //   if (window.confirm("ยืนยันการ archive?")) {
-  //   await archiveDepartment({ id });
-  //   }
-  // };
 
   const handleSubmit = async () => {
     if (currentDepartment) {
@@ -114,14 +108,6 @@ export function DepartmentManager() {
                 >
                   แก้ไข
                 </Button>
-                {/* <Button
-                  variant="outline"
-                  size="sm"
-                  className="mr-2"
-                  onClick={() => handleArchiveClick(department._id)}
-                >
-                  เก็บ
-                </Button> */}
                 <Button
                   variant="destructive"
                   size="sm"
@@ -142,7 +128,7 @@ export function DepartmentManager() {
               {currentDepartment ? "แก้ไขข้อมูลแผนก" : "เพิ่มแผนกใหม่"}
             </DialogTitle>
             <DialogDescription>
-              
+
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

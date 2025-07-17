@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -35,18 +31,15 @@ export function DocModal({ docId }: DocModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {/* <DialogTrigger asChild>
-        <Button variant="outline">View Document</Button>
-      </DialogTrigger> */}
       <DialogContent className="sm:max-w-4xl md:max-w-6xl lg:max-w-7xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{ documentData ? documentData.name : "เอกสารไม่มีชื่อ"}</DialogTitle>
+          <DialogTitle>{documentData ? documentData.name : "เอกสารไม่มีชื่อ"}</DialogTitle>
           <DialogDescription>
             {documentData ? formatRelative(
-                                        new Date(documentData.uploaded),
-                                        new Date(),
-                                        { locale: th }
-                                      ) : "กำลังโหลด..."}
+              new Date(documentData.uploaded),
+              new Date(),
+              { locale: th }
+            ) : "กำลังโหลด..."}
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 flex items-center justify-center overflow-hidden p-2">
@@ -60,13 +53,6 @@ export function DocModal({ docId }: DocModalProps) {
             <p>กำลังโหลด...</p>
           )}
         </div>
-        {/* <DialogFooter className="sm:justify-start">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Close
-            </Button>
-          </DialogClose>
-        </DialogFooter> */}
       </DialogContent>
     </Dialog>
   )

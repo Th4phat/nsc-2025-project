@@ -29,16 +29,14 @@ import {
 } from "lucide-react";
 
 export default function ProfilePage() {
-  // Fetch user data and get the update mutation function from Convex
   const profileData = useQuery(api.users.getMyProfile);
   const updateUserProfile = useMutation(api.users.updateUserProfile);
-  // Get the loading state directly from the mutation hook
 
   const [profile, setProfile] = useState({
     phone: "",
     bio: "",
     title: "",
-    location: "", // This maps to 'address' in the schema
+    location: "",
     website: "",
   });
 
@@ -48,7 +46,7 @@ export default function ProfilePage() {
         phone: profileData.profile.phone || "",
         bio: profileData.profile.bio || "",
         title: profileData.profile.title || "",
-        location: profileData.profile.address || "", // Map 'address' from schema to 'location' in state
+        location: profileData.profile.address || "",
         website: profileData.profile.website || "",
       });
     }
@@ -65,8 +63,6 @@ export default function ProfilePage() {
     e.preventDefault();
     try {
       await updateUserProfile({
-        // email: profile.email,
-        // name: profile.name,
         phone: profile.phone,
         bio: profile.bio,
         title: profile.title,
@@ -75,12 +71,11 @@ export default function ProfilePage() {
       });
       toast.success("อัปเดตโปรไฟล์เสร็จสิ้น");
     } catch (error) {
-      // console.error("Failed to update profile:", error);
+
       toast.error("เกิดปัญหาขึ้น");
     }
   };
 
-  // Show a loading state while fetching initial data
   if (profileData === undefined) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -89,7 +84,6 @@ export default function ProfilePage() {
     );
   }
 
-  // Handle case where user is not logged in
   if (profileData === null || profileData.user === null) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -101,10 +95,9 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="container mx-auto max-w-4xl px-4 py-8">
-        {/* Navigation Header */}
         <div className="mb-6">
           <Link
-            href="/dashboard" // Adjust this link to your dashboard route
+            href="/dashboard"
             className={buttonVariants({
               variant: "ghost",
               className: "flex items-center gap-2",
@@ -115,14 +108,13 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* Profile Header */}
         <div className="mb-8 flex items-center gap-4">
           <div className="relative">
             <Avatar className="h-20 w-20 border-4 border-white shadow-lg dark:border-slate-800">
               <AvatarImage src="/api/placeholder/80/80" alt="Profile" />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-xl font-semibold text-white">
                 {
-                  profileData.user?.name?.slice(0,2)
+                  profileData.user?.name?.slice(0, 2)
                 }
               </AvatarFallback>
             </Avatar>
@@ -149,7 +141,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Profile Edit Form */}
         <Card className="border-0 bg-white/80 shadow-lg backdrop-blur-sm dark:bg-slate-900/80">
           <CardHeader className="rounded-t-lg bg-slate-50 dark:bg-slate-800/50">
             <div className="flex items-center gap-3">
@@ -241,7 +232,7 @@ export default function ProfilePage() {
             <CardFooter className="bg-slate-50 p-6 dark:bg-slate-800/50">
               <div className="flex w-full items-center justify-between">
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  
+
                 </p>
                 <Button
                   type="submit"

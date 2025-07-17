@@ -12,7 +12,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@radix-ui/react-separator";
 
 export default function ManageFoldersPage() {
-  // User Folders
   const folders = useQuery(api.folders.getFolders, {});
   const createFolder = useMutation(api.folders.createFolder);
   const deleteFolder = useMutation(api.folders.deleteFolder);
@@ -41,7 +40,6 @@ export default function ManageFoldersPage() {
     setEditingFolderName("");
   };
 
-  // AI Categories
   const aiCategories = useQuery(api.document_crud.getAllAiCategories, {});
   const renameAiCategory = useMutation(api.document_crud.renameAiCategory);
   const deleteAiCategory = useMutation(api.document_crud.deleteAiCategory);

@@ -26,8 +26,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from "./ui/label";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
-
-// Enhanced Download Button Component
 interface DownloadButtonSectionProps {
   document: Doc<"documents">;
 }
@@ -65,7 +63,6 @@ const DownloadButtonSection: React.FC<DownloadButtonSectionProps> = ({ document 
   );
 };
 
-// Utility function to format file size
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -100,7 +97,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
     if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะย้ายเอกสารนี้ไปถังขยะ?")) {
       try {
         await softDeleteDocument({ documentId: document._id });
-        setSelectedDocument(null); // Deselect the document after successful deletion
+        setSelectedDocument(null);
       } catch (error) {
         console.error("Failed to soft delete document:", error);
       }
@@ -111,7 +108,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
     if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะกู้คืนเอกสารนี้?")) {
       try {
         await restoreDocument({ documentId: document._id });
-        setSelectedDocument(null); // Deselect the document after successful restoration
+        setSelectedDocument(null);
       } catch (error) {
         console.error("Failed to restore document:", error);
       }
@@ -122,7 +119,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
     if (document && window.confirm("คุณแน่ใจหรือไม่ที่จะลบเอกสารนี้อย่างถาวร? การดำเนินการนี้ไม่สามารถย้อนกลับได้.")) {
       try {
         await permanentlyDeleteDocument({ documentId: document._id });
-        setSelectedDocument(null); // Deselect the document after successful permanent deletion
+        setSelectedDocument(null);
       } catch (error) {
         console.error("Failed to permanently delete document:", error);
       }

@@ -32,7 +32,6 @@ interface Role {
   permissions: string[];
 }
 
-// Dummy list of all possible permissions (replace with actual permissions from your system)
 const ALL_PERMISSIONS = [
   "profile:read:own",
   "profile:update:own",

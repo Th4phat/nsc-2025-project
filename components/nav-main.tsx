@@ -17,11 +17,11 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
-
+import { Folder } from "lucide-react";
 export function NavMain({
   items,
   label,
-  onMoveClick // Destructure onMoveClick
+  onMoveClick
 }: {
   items: {
     title: string
@@ -31,12 +31,12 @@ export function NavMain({
     items?: {
       title: string
       url: string
-      documentId?: string; // Add optional documentId
+      documentId?: string;
     }[]
-    actions?: React.ReactNode; // Add optional actions prop
+    actions?: React.ReactNode;
   }[],
   label: string,
-  onMoveClick?: (documentId: string) => void; // Add optional onMoveClick prop
+  onMoveClick?: (documentId: string) => void; 
 }) {
   return (
     <SidebarGroup>
@@ -54,7 +54,7 @@ export function NavMain({
                 <SidebarMenuButton tooltip={item.title}>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
-                  {item.actions} {/* Render actions here */}
+                  {item.actions}
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                 </SidebarMenuButton>
               </CollapsibleTrigger>
@@ -63,17 +63,17 @@ export function NavMain({
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton asChild>
-                        <a href={subItem.url} className="flex justify-between items-center w-full"> {/* Adjust styling for button */}
+                        <a href={subItem.url} className="flex justify-between items-center w-full">
                           <span>{subItem.title}</span>
-                          {subItem.documentId && onMoveClick && ( // Render button if documentId and onMoveClick exist
+                          {subItem.documentId && onMoveClick && (
                             <button
                               onClick={(e) => {
-                                e.preventDefault(); // Prevent navigation
+                                e.preventDefault();
                                 onMoveClick(subItem.documentId!);
                               }}
-                              className="ml-2 p-1 hover:bg-gray-200 rounded" // Basic styling for button
+                              className="ml-2 p-1 hover:bg-gray-200 rounded"
                             >
-                              <Folder size={16} /> {/* Use Folder icon */}
+                              <Folder size={16} />
                             </button>
                           )}
                         </a>
@@ -90,4 +90,3 @@ export function NavMain({
   )
 }
 
-import { Folder } from "lucide-react"; // Import Folder icon

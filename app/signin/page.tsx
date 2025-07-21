@@ -7,7 +7,7 @@ import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
 
 export default function SignIn() {
@@ -16,6 +16,14 @@ export default function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const users = [
+    { email: "admin@test.com", password: "12345678", role: "แอดมิน" },
+    { email: "director@test.com", password: "12345678", role: "ผู้อำนวยการ" },
+    { email: "hod@test.com", password: "12345678", role: "หัวหน้าแผนก" },
+    { email: "employee@test.com", password: "12345678", role: "พนักงาน" },
+    { email: "employee2@test.com", password: "12345678", role: "พนักงาน" },
+  ];
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -108,19 +116,40 @@ export default function SignIn() {
               )}
             </Button>
           </form>
+          <p className="text-center text-sm text-muted-foreground">
+          <Button variant="link" className="px-0" asChild>
+            <a href="/disclaimer">Disclaimer (ข้อตกลงการใช้ซอฟท์แวร์)</a>
+          </Button>{" "}
+        </p>
         </CardContent>
 
-        {/* Footer */}
-        {/* <p className="text-center text-sm text-muted-foreground">
-          By continuing, you agree to our{" "}
-          <Button variant="link" className="px-0" asChild>
-            <a href="#">Terms of Service</a>
-          </Button>{" "}
-          and{" "}
-          <Button variant="link" className="px-0" asChild>
-            <a href="#">Privacy Policy</a>
-          </Button>
-        </p> */}
+        <CardFooter className="pt-4">
+          <div className="w-full text-sm text-muted-foreground">
+            <h4 className="font-semibold mb-2">ชื่อผู้ใช้และรหัสผ่านสำหรับการทดสอบ:</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left table-auto">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-1 border-b">อีเมล</th>
+                    <th className="px-2 py-1 border-b">รหัสผ่าน</th>
+                    <th className="px-2 py-1 border-b">บทบาท</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user, index) => (
+                    <tr key={index}>
+                      <td className="px-2 py-1">{user.email}</td>
+                      <td className="px-2 py-1">{user.password}</td>
+                      <td className="px-2 py-1">{user.role}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CardFooter>
+
+        
       </Card>
     </div>
   );

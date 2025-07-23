@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
 import { useDropzone } from "react-dropzone";
 import {
   Dialog,
@@ -11,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { api } from "@/convex/_generated/api";
+
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -20,28 +19,31 @@ interface UploadModalProps {
 
 export function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [isClassified, setIsClassified] = useState(false);
-  const createDocument = useMutation(api.document_crud.createDocument);
-  const generateUploadUrl = useMutation(api.document.generateUploadUrl);
 
   const onDrop = async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (!file) return;
 
-    const uploadUrl = await generateUploadUrl();
-    const result = await fetch(uploadUrl, {
-      method: "POST",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-    const { storageId } = await result.json();
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", file.name);
+    formData.append("classified", isClassified.toString());
 
-    await createDocument({
-      name: file.name,
-      fileId: storageId,
-      mimeType: file.type,
-      fileSize: file.size,
-      classified: isClassified,
+    const result = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
     });
+
+    if (!result.ok) {
+      const errorData = await result.json();
+      console.error("Upload failed:", errorData.error);
+      // Optionally, show an error message to the user
+      return;
+    }
+
+    // If needed, handle success response from the API route
+    // const { documentId } = await result.json();
+    // console.log("Document uploaded with ID:", documentId);
 
     onClose();
   };

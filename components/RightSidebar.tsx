@@ -281,7 +281,19 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               <span className="text-sm font-medium">ประเภทไฟล์</span>
             </div>
             <Badge variant="secondary" className="ml-6 text-xs">
-              {document.mimeType}
+              {
+  document.mimeType === 'application/pdf'
+    ? 'PDF'
+    : document.mimeType ===
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ? 'Word Document'
+    : document.mimeType ===
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ? 'Excel Spreadsheet'
+    : document.mimeType.startsWith('image/')
+    ? 'Image'
+    : 'Unknown'
+}
             </Badge>
           </div>
 
@@ -319,7 +331,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
           )}
         </div>
 
-        <div className="border-t border-slate-200 dark:border-slate-800 p-4 lg:p-6">
+        {/* <div className="border-t border-slate-200 dark:border-slate-800 p-4 lg:p-6">
           <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
             <Eye className="h-4 w-4" />
             แสดงตัวอย่าง
@@ -332,7 +344,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               )}
             </div>
           </div>
-        </div>
+        </div> */}
       </ScrollArea>
 
       <ShareModal

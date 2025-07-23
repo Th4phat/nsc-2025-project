@@ -10,6 +10,8 @@ export const createDocument = mutation({
         mimeType: v.string(),
         fileSize: v.number(),
         classified: v.optional(v.boolean()),
+        categories: v.optional(v.array(v.string())),
+        aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
     },
     handler: async (ctx, args) => {
         // 1. Get the identity of the user calling this mutation.
@@ -37,19 +39,16 @@ export const createDocument = mutation({
             mimeType: args.mimeType,
             fileSize: args.fileSize,
             ownerId: userId, // Use the Convex _id obtained from getAuthUserId
-            status: "processing", // Initial status
+            status: "completed", // Set status to completed as processing is done client-side
             classified: args.classified,
-        });
-
-        // Schedule the document processing immediately
-        await ctx.scheduler.runAfter(0, internal.document_process.processDocument, {
-            documentId: documentId,
+            aiCategories: args.categories,
+            aiSuggestedRecipients: args.aiSuggestedRecipients,
         });
 
         // Schedule AI recipient suggestion generation
-        await ctx.scheduler.runAfter(0, api.document_process.generateAiShareSuggestions, {
-            documentId: documentId,
-        });
+        // await ctx.scheduler.runAfter(0, api.document_process.generateAiShareSuggestions, {
+        //     documentId: documentId,
+        // });
 
         // BONUS: This is also where you would create your audit log entry.
         await ctx.db.insert("auditLogs", {
@@ -85,6 +84,41 @@ export const updateDocumentCategoriesAndStatus = internalMutation({
                 targetTable: "documents",
                 targetId: document._id,
                 details: { newStatus: args.status, categories: args.categories, error: args.error },
+            });
+        }
+        return null;
+    },
+});
+
+export const updateDocumentProcessingResults = mutation({
+    args: {
+        documentId: v.id("documents"),
+        categories: v.optional(v.array(v.string())),
+        aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
+        status: v.union(v.literal("completed"), v.literal("failed")),
+        error: v.optional(v.string()),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        const document = await ctx.db.get(args.documentId);
+        if (document) {
+            await ctx.db.patch(document._id, {
+                aiCategories: args.categories,
+                aiSuggestedRecipients: args.aiSuggestedRecipients,
+                aiProcessingError: args.error,
+                status: args.status,
+            });
+            await ctx.db.insert("auditLogs", {
+                actorId: document.ownerId,
+                action: `document.aiProcessed.${args.status}`,
+                targetTable: "documents",
+                targetId: document._id,
+                details: {
+                    newStatus: args.status,
+                    categories: args.categories,
+                    aiSuggestedRecipients: args.aiSuggestedRecipients,
+                    error: args.error,
+                },
             });
         }
         return null;

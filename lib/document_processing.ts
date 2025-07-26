@@ -1,9 +1,7 @@
-import { PDFiumLibrary } from "@hyzyla/pdfium";
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import { Buffer } from "node:buffer";
 import { GoogleGenAI, Type } from "@google/genai";
-import { pdfToText } from "pdf-ts";
 
 export type FileContent =
   | { type: "text"; content: string }
@@ -17,25 +15,9 @@ export async function getFileContent(
   const contentType = file.type;
 
   switch (contentType) {
-    // case "application/pdf": {
-    //   const library = await PDFiumLibrary.init();
-    //   const document = await library.loadDocument(uint8buff);
-    //   const page = document.getPage(0); // Get the first page
-    //   const image = await page.render({
-    //     scale: 2,
-    //     render: 'bitmap',
-    //   });
-    //   document.destroy(); // Release resources
-    //   const b64data = Buffer.from(image.data).toString("base64");
-    //   return { type: "image", content: b64data, mimeType: "image/png" };
-    // }
     case "application/pdf": {
-      // Assuming pdfToText accepts a Uint8Array or Buffer
-      const uint8buff = new Uint8Array(arrayBuffer);
-      const texts = await pdfToText(uint8buff);
-      const cleanedTexts = texts.replace(/[\x00-\x1F\x7F]/g, "");
-      const normalizedTexts = cleanedTexts.normalize("NFC");
-      return { type: "text", content: normalizedTexts };
+      const b64data = Buffer.from(uint8buff).toString("base64");
+      return { type: "image", content: b64data, mimeType: "application/pdf" };
     }
     case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
       // Convert the ArrayBuffer to a Node.js Buffer
@@ -107,13 +89,12 @@ export async function getDocCategories(
             `;
     promptContents.push(promptTextForDocProcess);
   } else {
-    // type === "image"
     promptContents.push({
       inlineData: {
         mimeType: fileContent.mimeType,
         data: fileContent.content,
       },
-    });
+    })
     promptTextForDocProcess = `
             **เป้าหมาย:**
             วิเคราะห์และจัดหมวดหมู่เอกสารจากรูปภาพที่ให้มา โดยระบุประเภทเอกสารที่เจาะจงและแม่นยำที่สุด

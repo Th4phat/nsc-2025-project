@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import {
@@ -29,21 +31,23 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
     formData.append("name", file.name);
     formData.append("classified", isClassified.toString());
 
-    const result = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!result.ok) {
-      const errorData = await result.json();
-      console.error("Upload failed:", errorData.error);
-      // Optionally, show an error message to the user
-      return;
-    }
-
-    // If needed, handle success response from the API route
-    // const { documentId } = await result.json();
-    // console.log("Document uploaded with ID:", documentId);
+    await toast.promise(
+      fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      }).then(async (response) => {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Upload failed");
+        }
+        return response;
+      }),
+      {
+        loading: "กำลังอัปโหลดเอกสาร...",
+        success: "อัปโหลดเอกสารสำเร็จ!",
+        error: (err) => `อัพโหลดเอกสารไม่สำเร็จ: ${err.message}`,
+      },
+    );
 
     onClose();
   };
@@ -85,6 +89,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
           <Label htmlFor="classified-switch">เป็นเอกสารลับ</Label>
         </div>
       </DialogContent>
+      {/* <Toaster richColors/> */}
     </Dialog>
   );
 }

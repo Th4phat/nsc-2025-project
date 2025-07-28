@@ -92,7 +92,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
   const softDeleteDocument = useMutation(api.document_crud.softDeleteDocument);
   const restoreDocument = useMutation(api.document_crud.restoreDocument);
   const permanentlyDeleteDocument = useMutation(api.document_crud.permanentlyDeleteDocument);
-  const generateDownloadUrl = useQuery(api.document.generateDownloadUrl, document ? { documentId: document._id } : "skip");
 
   const userPermissions = useQuery(api.document_sharing.getUserDocumentPermissions, document ? { documentId: document._id } : "skip");
   const currentUser = useQuery(api.users.getCurrentUser);

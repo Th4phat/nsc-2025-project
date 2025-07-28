@@ -3,7 +3,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,6 @@ import { toast, Toaster } from "sonner";
 export default function SignIn() {
   const { signIn } = useAuthActions();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -28,7 +27,6 @@ export default function SignIn() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
-    setError(null)
 
     const formData = new FormData(e.target as HTMLFormElement)
     formData.set("flow", "signIn")
@@ -37,9 +35,8 @@ export default function SignIn() {
     try {
       await signIn("password", formData);
       router.push("/dashboard");
-    } catch (error: any) {
+    } catch (_) {
       toast.error("กรุณาใส่อีเมลและรหัสผ่านที่ถูกต้อง");
-      // console.error(error);
     } finally {
       setIsLoading(false);
     }

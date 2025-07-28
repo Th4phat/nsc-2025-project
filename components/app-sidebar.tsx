@@ -12,8 +12,7 @@ import {
   Send,
   Users,
   Settings,
-  FileText,
-  MoreVertical, // Added for dropdown menu
+  FileText
 } from "lucide-react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -30,7 +29,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel"; // Import Id
 import { useState } from "react";
 import { Input } from "./ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { NavProjects } from "./nav-projects";
 
@@ -48,9 +47,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const data = {
     user: {
-      name: "นายช่วยเหลือ วาดภาพ",
-      email: "m@cooperate.com",
-      avatar: "/avatars/placeholder.jpg",
+      name: "...",
+      email: "...",
+      avatar: "...",
     },
 
     projects: [
@@ -85,7 +84,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [isRenameFolderDialogOpen, setIsRenameFolderDialogOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState<Id<"folders"> | null>(null);
   const [renameFolderName, setRenameFolderName] = useState("");
-  const [folderToDelete, setFolderToDelete] = useState<Id<"folders"> | null>(null);
 
   const handleCreateFolder = async () => {
     if (newFolderName.trim()) {

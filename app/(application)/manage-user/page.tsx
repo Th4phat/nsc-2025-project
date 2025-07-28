@@ -42,12 +42,6 @@ interface User {
     controlledDepartments?: Id<"departments">[];
 }
 
-
-interface Role {
-    _id: Id<"roles">;
-    name: string;
-}
-
 export default function ManageUserPage() {
     const permissions = useQuery(api.users.getMyPermissions);
     const users = useQuery(api.user_management.getUsers);

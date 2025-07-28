@@ -70,8 +70,7 @@ export default function ProfilePage() {
         website: profile.website,
       });
       toast.success("อัปเดตโปรไฟล์เสร็จสิ้น");
-    } catch (error) {
-
+    } catch (_) {
       toast.error("เกิดปัญหาขึ้น");
     }
   };

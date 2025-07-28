@@ -111,7 +111,7 @@ export default function ProfilePage() {
         <div className="mb-8 flex items-center gap-4">
           <div className="relative">
             <Avatar className="h-20 w-20 border-4 border-white shadow-lg dark:border-slate-800">
-              <AvatarImage src="/api/placeholder/80/80" alt="Profile" />
+              <AvatarImage src="..." alt="Profile" />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-xl font-semibold text-white">
                 {
                   profileData.user?.name?.slice(0, 2)

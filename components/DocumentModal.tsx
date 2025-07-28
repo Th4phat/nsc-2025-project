@@ -14,9 +14,10 @@ import { th } from "date-fns/locale";
 
 interface DocModalProps {
   docId?: string;
+  onClose?: () => void;
 }
 
-export function DocModal({ docId }: DocModalProps) {
+export function DocModal({ docId, onClose }: DocModalProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -24,8 +25,11 @@ export function DocModal({ docId }: DocModalProps) {
       setOpen(true);
     } else {
       setOpen(false);
+      if (onClose) {
+        onClose();
+      }
     }
-  }, [docId]);
+  }, [docId, onClose]);
 
   const documentData = useQuery(api.document.getDocumentAndUrl, docId ? { documentId: docId as Id<"documents"> } : "skip");
 

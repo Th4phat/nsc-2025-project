@@ -42,6 +42,13 @@ export async function POST(request: NextRequest) {
   const name = formData.get("name") as string | null;
   const classified = formData.get("classified") === "true";
 
+  if (!file) {
+    return new Response("Missing file", {
+      status: 400,
+    });
+  }
+  const arrayBuffer = await file.arrayBuffer();
+
   if (!file || !name) {
     return new Response("Missing file or name", {
       status: 400,
@@ -71,7 +78,7 @@ export async function POST(request: NextRequest) {
     let suggestedRecipients: Id<"users">[] | undefined;
 
     try {
-      fileContent = await getFileContent(file); // Assign to the declared variable
+      fileContent = await getFileContent(arrayBuffer, file.type); // Assign to the declared variable
       categories = await getDocCategories(name, fileContent);
     } catch (processingError: any) {
       console.error("Error processing document content or categories:", processingError);
@@ -127,7 +134,7 @@ export async function POST(request: NextRequest) {
         let processingError: string | undefined;
 
         try {
-          fileContent = await getFileContent(file);
+          fileContent = await getFileContent(arrayBuffer, file.type);
           categories = await getDocCategories(name, fileContent);
         } catch (processingError: any) {
           console.error("Error processing document content or categories:", processingError);

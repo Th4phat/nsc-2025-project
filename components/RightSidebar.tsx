@@ -83,6 +83,11 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
   const [previewDocumentId, setPreviewDocumentId] = useState<Id<"documents"> | undefined>(undefined);
 
   const folders = useQuery(api.folders.getFolders, {});
+
+  // Reset previewDocumentId when the selected document changes
+  React.useEffect(() => {
+    setPreviewDocumentId(undefined);
+  }, [document]);
   const moveDocument = useMutation(api.document.moveDocument);
   const softDeleteDocument = useMutation(api.document_crud.softDeleteDocument);
   const restoreDocument = useMutation(api.document_crud.restoreDocument);
@@ -376,7 +381,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
          </DialogFooter>
        </DialogContent>
      </Dialog>
-     <DocModal docId={previewDocumentId} />
+     <DocModal docId={previewDocumentId} onClose={() => setPreviewDocumentId(undefined)} />
     </aside>
   );
 };

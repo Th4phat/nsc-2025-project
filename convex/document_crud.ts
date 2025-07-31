@@ -285,13 +285,28 @@ export const getAllAiCategories = query({
       return [];
     }
 
-    const documents = await ctx.db
+    const ownedDocuments = await ctx.db
       .query("documents")
       .filter((q) => q.eq(q.field("ownerId"), userId))
       .collect();
 
+    const sharedDocumentShares = await ctx.db
+      .query("documentShares")
+      .withIndex("by_recipientId", (q) => q.eq("recipientId", userId))
+      .collect();
+
+    const sharedDocuments = [];
+    for (const share of sharedDocumentShares) {
+      const document = await ctx.db.get(share.documentId);
+      if (document) {
+        sharedDocuments.push(document);
+      }
+    }
+
+    const allDocuments = [...ownedDocuments, ...sharedDocuments];
+
     const allCategories = new Set<string>();
-    for (const doc of documents) {
+    for (const doc of allDocuments) {
       if (doc.aiCategories) {
         for (const category of doc.aiCategories) {
           allCategories.add(category);

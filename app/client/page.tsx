@@ -54,7 +54,7 @@ function Content() {
   if (numbers === undefined) {
     return (
       <div className="mx-auto">
-        <p>loading... (consider a loading skeleton)</p>
+        <p>กำลังโหลด... (consider a loading skeleton)</p>
         </div>
     );
   }

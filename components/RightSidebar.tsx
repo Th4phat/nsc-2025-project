@@ -171,7 +171,10 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
                 size="sm"
                 className="w-full justify-start gap-2 h-9"
                 title="แชร์"
-                onClick={() => setIsShareModalOpen(true)}
+                onClick={() => {
+                  setIsShareModalOpen(true);
+                  setPreviewDocumentId(undefined);
+                }}
               >
                 <Share className="h-4 w-4" />
                 <span className="">แชร์</span>
@@ -192,7 +195,10 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
               size="sm"
               className="w-full justify-start gap-2 h-9"
               title="ย้ายไปโฟลเดอร์"
-              onClick={() => setIsMoveToFolderOpen(true)}
+              onClick={() => {
+                  setIsMoveToFolderOpen(true);
+                  setPreviewDocumentId(undefined);
+                }}
             >
               <FolderOpen className="h-4 w-4" />
               <span className="">ย้าย</span>

@@ -19,7 +19,9 @@ import Papa from "papaparse";
  * Accessible only by users with 'user:read:any' permission (admin role).
  */
 export const getUsers = queryWithAuth(["user:read:any"])({
-  args: {},
+  args: {
+    query: v.optional(v.string()),
+  },
   returns: v.array(
     v.object({
       _id: v.id("users"),
@@ -33,8 +35,18 @@ export const getUsers = queryWithAuth(["user:read:any"])({
       controlledDepartments: v.optional(v.array(v.id("departments"))),
     }),
   ),
-  handler: async (ctx) => {
-    const users = await ctx.db.query("users").collect();
+  handler: async (ctx, args) => {
+    let users = await ctx.db.query("users").collect();
+
+    if (args.query) {
+      const lowerCaseQuery = args.query.toLowerCase();
+      users = users.filter(
+        (user) =>
+          user.name?.toLowerCase().includes(lowerCaseQuery) ||
+          user.email.toLowerCase().includes(lowerCaseQuery),
+      );
+    }
+
     const usersWithDetails = await Promise.all(
       users.map(async (user) => {
         let departmentName: string | undefined;

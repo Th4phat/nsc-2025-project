@@ -75,9 +75,11 @@ export default function Page() {
   );
 
   const filteredDocuments = useMemo(() => {
-    return documents?.filter((document) =>
-      document.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return documents
+      ?.filter((document) =>
+        document.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => b._creationTime - a._creationTime); // Sort by creation time descending
   }, [documents, searchTerm]);
   console.log(filteredDocuments)
   const unreadDocuments = useQuery(api.document_sharing.getUnreadDocuments);

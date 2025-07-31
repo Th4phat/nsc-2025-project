@@ -44,7 +44,9 @@ interface User {
 
 export default function ManageUserPage() {
     const permissions = useQuery(api.users.getMyPermissions);
-    const users = useQuery(api.user_management.getUsers);
+    const [searchInput, setSearchInput] = useState("");
+    const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
+    const users = useQuery(api.user_management.getUsers, { query: submittedSearchQuery });
     const departments = useQuery(api.departments.listDepartments);
     const roles = useQuery(api.roles.listRoles);
 
@@ -245,16 +247,28 @@ export default function ManageUserPage() {
                     <CardHeader>
                         <CardTitle className="text-2xl font-bold flex justify-between items-center">
                             จัดการผู้ใช้
-                            {permissions.includes("user:create") && (
-                                <div className="flex gap-2">
-                                    <Button onClick={() => setIsCreateUserDialogOpen(true)} size="sm">
-                                        สร้างผู้ใช้
-                                    </Button>
-                                    {/* <Button onClick={() => setIsBatchCreateUserDialogOpen(true)} size="sm" variant="outline">
-                                        นำเข้าจาก CSV
-                                    </Button> */}
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="text"
+                                    placeholder="ค้นหาผู้ใช้..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    className="max-w-sm"
+                                />
+                                <Button onClick={() => setSubmittedSearchQuery(searchInput)} size="sm" variant="outline">
+                                    ค้นหา
+                                </Button>
+                                {permissions.includes("user:create") && (
+                                    <div className="flex gap-2">
+                                        <Button onClick={() => setIsCreateUserDialogOpen(true)} size="sm">
+                                            สร้างผู้ใช้
+                                        </Button>
+                                        {/* <Button onClick={() => setIsBatchCreateUserDialogOpen(true)} size="sm" variant="outline">
+                                            นำเข้าจาก CSV
+                                        </Button> */}
+                                    </div>
+                                )}
+                            </div>
                         </CardTitle>
                         <CardDescription>
                             ดู แก้ไข และจัดการบทบาทและสิทธิ์ของผู้ใช้

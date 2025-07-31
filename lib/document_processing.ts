@@ -188,31 +188,49 @@ function createShareSuggestionsPrompt(
   userListString: string
 ): string {
   const basePrompt = `
-    Analyze the following document and the list of available users.
-    Your goal is to suggest a list of User IDs who would be most relevant to share this document with.
-    Consider the document's topic, keywords, and purpose.
-    Consider the users' names, emails, and department IDs (if available) to infer their roles or areas of interest.
-    The document owner (User ID: ${ownerId}) should NOT be included in the suggestions.
+Analyze the following document and the list of available users.
+Your goal is to suggest a list of User IDs who would be most relevant
+to share this document with. Consider the document's topic, keywords,
+and purpose. Consider the users' names, emails, and department IDs
+(if available) to infer their roles or areas of interest.
+The document owner (User ID: ${ownerId}) should NOT be included
+in the suggestions.
 
-    If no users are deemed relevant, or if the user list is empty (excluding the owner), return nothing.
+If the document content is unavailable or insufficient to determine
+relevance (e.g., scanned PDF with no extractable text), return an
+empty JSON array and no user IDs. If no users are deemed relevant,
+or if the user list is empty (excluding the owner), return an empty
+JSON array.
 
-    Document Title: ${documentName}
-  `;
+Document Title: ${documentName}
+`;
 
   let contentSection = "";
   if (fileContent.type === "text") {
-    contentSection = `\nDocument Content:\n${fileContent.content || "no data found"}`;
+    contentSection = `
+Document Content:
+${fileContent.content || "no data found"}
+`;
   } else if (fileContent.type === "pdf") {
-    contentSection = `\nDocument Content (extracted text):\n${fileContent.textContent || "no text found"}`;
+    contentSection = `
+Document Content (extracted text):
+${fileContent.textContent || "no text found, this is probably scanned pdf"}
+`;
   }
 
-  const userSection = `\nAvailable users:\n${userListString}`;
-  const instruction = "\nBased on the document and user profiles, provide a JSON array of User IDs to share with:";
+  const userSection = `
+Available users:
+${userListString}
+`;
+
+  const instruction = `
+Based on the document and user profiles, provide a JSON array of User IDs
+to share with:
+`;
 
   return basePrompt + contentSection + userSection + instruction;
 }
 
-// AI Response Handlers
 function parseStringArray(responseText: string): string[] {
   if (!responseText) {
     throw new Error("AI response was empty");

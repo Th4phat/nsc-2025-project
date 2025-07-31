@@ -73,32 +73,8 @@ export async function POST(request: NextRequest) {
 
     const { storageId } = await response.json();
 
-    let categories: string[] | undefined;
-    let fileContent: FileContent | undefined; // Declare fileContent here
-    let suggestedRecipients: Id<"users">[] | undefined;
-
-    try {
-      fileContent = await getFileContent(arrayBuffer, file.type); // Assign to the declared variable
-      categories = await getDocCategories(name, fileContent);
-    } catch (processingError: any) {
-      console.error("Error processing document content or categories:", processingError);
-      // Continue without categories if an error occurs
-    }
-
-    if (fileContent) { // Only proceed if fileContent is defined
-      try {
-        const allUsers = await fetchQuery(api.users.getAllUsers, {}, { token });
-        suggestedRecipients = (await getAiShareSuggestions(
-          name,
-          fileContent,
-          userId,
-          allUsers,
-        )) as Id<"users">[]; // Cast the result
-      } catch (suggestionError: any) {
-        console.error("Error generating AI share suggestions:", suggestionError);
-        // Continue without suggestions if an error occurs
-      }
-    }
+let categories: string[] | undefined;
+let suggestedRecipients: Id<"users">[] | undefined;
 
     // 3. Create the document record in Convex with initial empty values
     const documentId = await fetchMutation(
@@ -127,36 +103,37 @@ export async function POST(request: NextRequest) {
     const headers = { "Content-Type": "application/json" };
     const initialResponse = new Response(responseBody, { status: 200, headers });
 
-    // Asynchronously process and update the document
-    if (!classified) {
-      (async () => {
-        let processingStatus: "completed" | "failed" = "completed";
-        let processingError: string | undefined;
+// Asynchronously process and update the document
+if (!classified) {
+  (async () => {
+    let fileContent: FileContent | undefined; // Declare fileContent here
+    let processingStatus: "completed" | "failed" = "completed";
+    let processingError: string | undefined;
 
-        try {
-          fileContent = await getFileContent(arrayBuffer, file.type);
-          categories = await getDocCategories(name, fileContent);
-        } catch (processingError: any) {
-          console.error("Error processing document content or categories:", processingError);
-          processingStatus = "failed";
-          processingError = processingError.message;
-        }
+    try {
+      fileContent = await getFileContent(arrayBuffer, file.type);
+      categories = await getDocCategories(name, fileContent);
+    } catch (processingError: any) {
+      console.error("Error processing document content or categories:", processingError);
+      processingStatus = "failed";
+      processingError = processingError.message;
+    }
 
-        if (fileContent && processingStatus === "completed") {
-          try {
-            const allUsers = await fetchQuery(api.users.getAllUsers, {}, { token });
-            suggestedRecipients = (await getAiShareSuggestions(
-              name,
-              fileContent,
-              userId,
-              allUsers,
-            )) as Id<"users">[];
-          } catch (suggestionError: any) {
-            console.error("Error generating AI share suggestions:", suggestionError);
-            processingStatus = "failed";
-            processingError = suggestionError.message;
-          }
-        }
+    if (fileContent && processingStatus === "completed") {
+      try {
+        const allUsers = await fetchQuery(api.users.getAllUsers, {}, { token });
+        suggestedRecipients = (await getAiShareSuggestions(
+          name,
+          fileContent,
+          userId,
+          allUsers,
+        )) as Id<"users">[];
+      } catch (suggestionError: any) {
+        console.error("Error generating AI share suggestions:", suggestionError);
+        processingStatus = "failed";
+        processingError = suggestionError.message;
+      }
+    }
 
         // Update the document with processing results
         await fetchMutation(

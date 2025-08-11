@@ -22,10 +22,6 @@ export const shareDocument = mutation({
         if (!sharerId) {
             throw new Error("Authenticated user not found.");
         }
-
-        // Check if the sharer has permission to share this document.
-        // For simplicity, for now we only allow the owner to share.
-        // In a real app, you might have a more complex permission system.
         const document = await ctx.db.get(args.documentId);
         if (!document || document.ownerId !== sharerId) {
             throw new Error("Not authorized to share this document.");
@@ -145,17 +141,20 @@ export const getSharedUsersForDocument = query({
             .withIndex("by_documentId", (q) => q.eq("documentId", args.documentId))
             .collect();
 
-        const sharedUsers = [];
+        const sharedUsers: {
+          user: { _id: Id<"users">; name?: string; email: string };
+          permissions: ("view" | "download" | "resend")[];
+        }[] = [];
         for (const share of shares) {
             const user = await ctx.db.get(share.recipientId);
             if (user) {
                 sharedUsers.push({
                     user: {
                         _id: user._id,
-                        name: user.name,
+                        name: user.name ?? undefined,
                         email: user.email,
                     },
-                    permissions: share.permissionGranted,
+                    permissions: share.permissionGranted as ("view" | "download" | "resend")[],
                 });
             }
         }
@@ -228,6 +227,8 @@ export const getSharedDocuments = query({
             aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
             aiProcessingError: v.optional(v.string()),
             folderId: v.optional(v.id("folders")),
+            // Include searchableText in returned document shape to match stored documents
+            searchableText: v.optional(v.string()),
         })
     ),
     handler: async (ctx, args) => {
@@ -235,12 +236,12 @@ export const getSharedDocuments = query({
         if (!userId) {
             return [];
         }
-
+ 
         const sharedDocumentShares = await ctx.db
             .query("documentShares")
             .withIndex("by_recipientId", (q) => q.eq("recipientId", userId))
             .collect();
-
+ 
         const sharedDocuments = [];
         for (const share of sharedDocumentShares) {
             const document = await ctx.db.get(share.documentId);
@@ -248,7 +249,7 @@ export const getSharedDocuments = query({
                 sharedDocuments.push(document);
             }
         }
-
+ 
         return sharedDocuments;
     },
 });
@@ -297,6 +298,7 @@ export const getUnreadDocumentsWithDetails = query({
             aiProcessingError: v.optional(v.string()),
             folderId: v.optional(v.id("folders")),
             classified: v.optional(v.boolean()),
+            searchableText: v.optional(v.string()), // Added searchableText
             shareCreator: v.object({
                 _id: v.id("users"),
                 name: v.optional(v.string()),
@@ -438,7 +440,7 @@ export const sendDocumentToCompany = mutationWithAuth([
             throw new Error("User not found");
         }
 
-        let usersToShareWith = [];
+        let usersToShareWith: any[] = [];
         if (args.departmentIds && args.departmentIds.length > 0) {
             const departmentMembers = await Promise.all(
                 args.departmentIds.map((departmentId) =>
@@ -504,6 +506,8 @@ export const listSharedDocuments = query({
             aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
             aiProcessingError: v.optional(v.string()),
             classified: v.optional(v.boolean()),
+            // Include searchableText in returned document shape to match stored documents
+            searchableText: v.optional(v.string()),
             sharerId: v.id("users"),
         })
     ),

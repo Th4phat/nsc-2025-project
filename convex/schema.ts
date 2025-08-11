@@ -74,11 +74,14 @@ export default defineSchema({
     aiProcessingError: v.optional(v.string()),
     classified: v.optional(v.boolean()),
     folderId: v.optional(v.id("folders")),
+    // New: extracted text used for naive search and future indexing
+    searchableText: v.optional(v.string()),
   })
     .index("by_ownerId", ["ownerId"])
     .index("by_status", ["status"])
     .index("by_aiCategory", ["aiCategories"])
-    .index("by_folderId", ["folderId"]),
+    .index("by_folderId", ["folderId"])
+    .searchIndex("by_searchable_text", { searchField: "searchableText", filterFields: ["name", "aiCategories"] }),
 
   documentFolders: defineTable({
     documentId: v.id("documents"),

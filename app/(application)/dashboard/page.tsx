@@ -4,7 +4,6 @@ import {
   FileText,
   FileImage,
   type LucideIcon,
-  Search,
   Inbox,
   X,
   Upload,
@@ -14,15 +13,14 @@ import RightSidebar from "@/components/RightSidebar";
 import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { AdvancedSearchBar } from "@/components/AdvanceSearch";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Doc } from "../../../convex/_generated/dataModel";
-import { formatRelative } from "date-fns";
+import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
 import { UploadModal } from "@/components/UploadModal";
@@ -51,6 +49,67 @@ const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = 
   },
 };
 
+// Friendly short labels for UI (avoid rendering full mime strings)
+const mimeLabels: Record<string, string> = {
+  "application/pdf": "PDF",
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "XLSX",
+};
+ 
+// Helper to safely escape search terms for RegExp
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Small component that highlights occurrences of `query` inside `text`.
+// Uses a <mark> with subtle styling so the highlight is visible in both light/dark.
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark
+            key={i}
+            className="bg-yellow-200 dark:bg-yellow-600/40 px-0.5 rounded"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
+// Helper: return a short excerpt from `text` centered on the first occurrence of `query`.
+// If the query isn't found, return the start of the text (trimmed).
+// radius controls how many characters appear on each side of the match.
+function getSnippet(text: string, query: string, radius = 80) {
+  if (!text) return "";
+  const plain = text.toString();
+  if (!query) {
+    const s = plain.slice(0, radius * 2);
+    return s + (plain.length > s.length ? "..." : "");
+  }
+  const lower = plain.toLowerCase();
+  const q = query.toLowerCase();
+  const idx = lower.indexOf(q);
+  if (idx === -1) {
+    const s = plain.slice(0, radius * 2);
+    return s + (plain.length > s.length ? "..." : "");
+  }
+  const start = Math.max(0, idx - radius);
+  const end = Math.min(plain.length, idx + q.length + radius);
+  const prefix = start > 0 ? "..." : "";
+  const suffix = end < plain.length ? "..." : "";
+  return prefix + plain.slice(start, end).trim() + suffix;
+}
+
 export default function Page() {
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
@@ -59,6 +118,35 @@ export default function Page() {
   const [selectedDocument, setSelectedDocument] =
     useState<Doc<"documents"> | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Advanced filter state (client-side)
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
+  const [mimeTypesFilter, setMimeTypesFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState<string | null>(null); // yyyy-mm-dd
+  const [dateTo, setDateTo] = useState<string | null>(null); // yyyy-mm-dd
+  const [matchMode, setMatchMode] = useState<
+    "default" | "phrase" | "whole_word" | "case_sensitive"
+  >("default");
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+
+  const fileTypeOptions = useMemo(() => {
+    return Object.keys(fileTypeIcons).map((mt) => ({
+      value: mt,
+      label: mimeLabels[mt] ?? mt.split("/").pop() ?? mt,
+    }));
+  }, []);
+
+  const onClear = useCallback(() => {
+    setAuthorFilter(null);
+    setMimeTypesFilter([]);
+    setCategoryFilter(null);
+    setDateFrom(null);
+    setDateTo(null);
+    setMatchMode("default");
+    setIsAdvancedOpen(false);
+    setSearchTerm("");
+  }, []);
 
   if (docid) {
     console.log(docid)
@@ -74,14 +162,110 @@ export default function Page() {
     {},
   );
 
+  // Always call the server-side search query but pass an empty string when there's no search term.
+  // The server will return all documents when query is empty; the UI chooses which source to use.
+  const searchResults = useQuery(api.document_crud.searchDocuments, {
+    query: searchTerm || "",
+  });
+  console.log(searchResults);
+
+  // Derived options from client data (computed from loaded documents)
+  const availableAuthors = useMemo(() => {
+    const map = new Map<string, number>();
+    (documents || []).forEach((d: any) => {
+      if (d?.ownerId) map.set(d.ownerId, (map.get(d.ownerId) ?? 0) + 1);
+    });
+    return Array.from(map.keys()).sort();
+  }, [documents]);
+
+  const availableCategories = useMemo(() => {
+    const s = new Set<string>();
+    (documents || []).forEach((d: any) => {
+      if (Array.isArray(d.aiCategories)) {
+        d.aiCategories.forEach((c: string) => s.add(c));
+      }
+    });
+    return Array.from(s).sort();
+  }, [documents]);
+
   const filteredDocuments = useMemo(() => {
-    return documents
-      ?.filter((document) =>
-        document.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => b._creationTime - a._creationTime); // Sort by creation time descending
-  }, [documents, searchTerm]);
-  console.log(filteredDocuments)
+    const docs: Doc<"documents">[] = (documents || []) as Doc<"documents">[];
+
+    // Normalizer helpers
+    const normalize = (s: any) => {
+      try {
+        if (!s) return "";
+        const str = s.toString().replace(/[\x00-\x1F\x7F]/g, "");
+        try {
+          return str.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
+        } catch {
+          return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC");
+        }
+      } catch {
+        return (s || "").toString();
+      }
+    };
+
+    const buildMatcher = (term: string) => {
+      if (!term) return () => true;
+      if (matchMode === "case_sensitive") {
+        return (text: string) => (text || "").includes(term);
+      }
+      if (matchMode === "whole_word") {
+        const pattern = new RegExp(`\\b${escapeRegExp(term)}\\b`, "iu");
+        return (text: string) => !!text.match(pattern);
+      }
+      if (matchMode === "phrase") {
+        const pattern = new RegExp(escapeRegExp(term), "iu");
+        return (text: string) => !!text.match(pattern);
+      }
+      // default: normalize & case-insensitive substring
+      const nTerm = normalize(term).toLowerCase();
+      return (text: string) => normalize(text || "").toLowerCase().includes(nTerm);
+    };
+
+    const matcher = buildMatcher(searchTerm);
+
+    const matchesFilters = (doc: Doc<"documents">) => {
+      // Access: document should already be in `documents` query (owned/shared)
+      // Owner filter
+      if (authorFilter && doc.ownerId !== authorFilter) return false;
+
+      // mime types
+      if (mimeTypesFilter.length > 0 && !mimeTypesFilter.includes(doc.mimeType)) return false;
+
+      // category
+      if (categoryFilter) {
+        if (!Array.isArray(doc.aiCategories) || !doc.aiCategories.includes(categoryFilter)) return false;
+      }
+
+      // date range
+      if (dateFrom) {
+        const fromMs = new Date(dateFrom).getTime();
+        if (doc._creationTime < fromMs) return false;
+      }
+      if (dateTo) {
+        // include the whole day of dateTo
+        const toMs = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+        if (doc._creationTime > toMs) return false;
+      }
+
+      // text search
+      if (searchTerm.trim().length > 0) {
+        const aggregate =
+          `${doc.name ?? ""} ${doc.description ?? ""} ${(doc.aiCategories ?? []).join(" ")} ${
+            (doc.searchableText || "")
+          }`;
+        return matcher(aggregate);
+      }
+
+      return true;
+    };
+
+    const res = docs.filter(matchesFilters).sort((a, b) => b._creationTime - a._creationTime);
+    return res;
+  }, [documents, searchTerm, authorFilter, mimeTypesFilter, categoryFilter, dateFrom, dateTo, matchMode]);
+  console.log("filteredDocuments", filteredDocuments)
   const unreadDocuments = useQuery(api.document_sharing.getUnreadDocuments);
   const unreadDocumentIds = useMemo(() => {
     return new Set(unreadDocuments ?? []);
@@ -108,27 +292,38 @@ export default function Page() {
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mx-2 h-6" />
 
-        <Button onClick={() => setIsUploadModalOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          อัพโหลดเอกสาร
+        <Button onClick={() => setIsUploadModalOpen(true)} className="h-9 px-4 sm:h-10 sm:px-4 md:h-9 md:px-4 lg:h-10 lg:px-4 xl:h-10 xl:px-4">
+          <Upload className="h-4 w-4 mr-2 sm:mr-0" />
+          <span className="hidden sm:inline">อัพโหลดเอกสาร</span>
         </Button>
         {docid && <DocModal docId={docid} />}
         <UploadModal
           isOpen={isUploadModalOpen}
           onClose={() => setIsUploadModalOpen(false)}
         />
-        <div className="relative w-full max-w-md">
-          <Label htmlFor="search" className="sr-only">
-            ค้นหาเอกสารด้วยคำสำคัญ
-          </Label>
-          <Input
-            id="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="ค้นหาเอกสารด้วยคำสำคัญ..."
-            className="pl-10 h-10"
+        <div className="relative w-full">
+          <AdvancedSearchBar
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            isAdvancedOpen={isAdvancedOpen}
+            setIsAdvancedOpen={setIsAdvancedOpen}
+            availableAuthors={availableAuthors}
+            availableCategories={availableCategories}
+            authorFilter={authorFilter}
+            setAuthorFilter={setAuthorFilter}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            mimeTypesFilter={mimeTypesFilter}
+            setMimeTypesFilter={setMimeTypesFilter}
+            fileTypeOptions={fileTypeOptions}
+            dateFrom={dateFrom}
+            setDateFrom={setDateFrom}
+            dateTo={dateTo}
+            setDateTo={setDateTo}
+            matchMode={matchMode}
+            setMatchMode={setMatchMode}
+            onClear={onClear}
           />
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />
         </div>
 
         {selectedDocument && (
@@ -185,12 +380,29 @@ export default function Page() {
                     },
                   )}
                   <div className="flex-grow truncate mr-4">
-                    <div className="font-medium text-slate-900 dark:text-slate-100 truncate">
-                      {document.name}
+                    <div className="font-medium text-slate-900 dark:text-slate-100 truncate flex items-center">
+                      <HighlightedText text={document.name} query={searchTerm} />
                       {unreadDocumentIds.has(document._id) && (
                         <span className="ml-2 h-2 w-2 rounded-full bg-red-500 inline-block"></span>
                       )}
+                      {document.status === "processing" && (
+                        <span
+                          className="ml-2 inline-block h-3 w-3 rounded-full border-2 border-blue-500 border-t-transparent dark:border-blue-400 animate-spin"
+                          aria-hidden="true"
+                          title="Processing"
+                        />
+                      )}
                     </div>
+                    {/* Show a short snippet from searchableText when a search term is present.
+                        This uses the server-stored `searchableText` (if available) and highlights the query. */}
+                    {searchTerm.trim() && (document as any).searchableText ? (
+                      <div className="text-sm text-slate-600 dark:text-slate-400 truncate mt-1">
+                        <HighlightedText
+                          text={getSnippet((document as any).searchableText, searchTerm)}
+                          query={searchTerm}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                   <div className="hidden md:flex items-center flex-shrink-0 ml-auto space-x-2">
                     {document.aiCategories?.map(
@@ -205,9 +417,9 @@ export default function Page() {
                       ),
                     )}
                     <span className="text-sm text-slate-500 dark:text-slate-400 w-28 text-right">
-                      {formatRelative(
+                      {format(
                         new Date(document._creationTime),
-                        new Date(),
+                        "dd/MMM/yyyy",
                         { locale: th }
                       )}
                     </span>

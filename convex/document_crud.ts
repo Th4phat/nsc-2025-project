@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { Id } from "./_generated/dataModel";
 export const createDocument = mutation({
     args: {
         name: v.string(),
@@ -10,28 +11,43 @@ export const createDocument = mutation({
         mimeType: v.string(),
         fileSize: v.number(),
         classified: v.optional(v.boolean()),
+        // Allow callers to optionally set an initial status. If omitted, infer from `classified`.
+        status: v.optional(
+          v.union(
+            v.literal("uploading"),
+            v.literal("processing"),
+            v.literal("completed"),
+            v.literal("failed"),
+            v.literal("trashed")
+          )
+        ),
         categories: v.optional(v.array(v.string())),
         aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
     },
     handler: async (ctx, args) => {
         // 1. Get the identity of the user calling this mutation.
         const identity = await ctx.auth.getUserIdentity();
-
+ 
         // 2. Protect against unauthenticated users.
         if (!identity) {
             return null
         }
-
+ 
         // 3. Get the user's Convex ID from the 'users' table using their email.
         // The `identity.email` should match the email stored in Convex's 'users' table.
         // 3. Get the user's Convex ID from the 'users' table.
         const userId = await getAuthUserId(ctx);
-
+ 
         // 4. Protect against unauthenticated users or users not found in the 'users' table.
         if (!userId) {
             throw new Error("Authenticated user not found.");
         }
-
+ 
+        // Compute the initial status: prefer an explicit arg, otherwise "completed" for classified docs,
+        // or "processing" for unclassified docs that will be processed asynchronously.
+        const initialStatus: "uploading" | "processing" | "completed" | "failed" | "trashed" =
+          args.status ?? (args.classified ? "completed" : "processing");
+ 
         // 5. Insert the new document with the valid ownerId.
         const documentId = await ctx.db.insert("documents", {
             name: args.name,
@@ -39,7 +55,7 @@ export const createDocument = mutation({
             mimeType: args.mimeType,
             fileSize: args.fileSize,
             ownerId: userId, // Use the Convex _id obtained from getAuthUserId
-            status: "completed", // Set status to completed as processing is done client-side
+            status: initialStatus,
             classified: args.classified,
             aiCategories: args.categories,
             aiSuggestedRecipients: args.aiSuggestedRecipients,
@@ -97,17 +113,23 @@ export const updateDocumentProcessingResults = mutation({
         aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
         status: v.union(v.literal("completed"), v.literal("failed")),
         error: v.optional(v.string()),
+        // Optional searchableText to store extracted text for search
+        searchableText: v.optional(v.string()),
     },
     returns: v.null(),
     handler: async (ctx, args) => {
         const document = await ctx.db.get(args.documentId);
         if (document) {
-            await ctx.db.patch(document._id, {
+            const patch: any = {
                 aiCategories: args.categories,
                 aiSuggestedRecipients: args.aiSuggestedRecipients,
                 aiProcessingError: args.error,
                 status: args.status,
-            });
+            };
+            if (typeof args.searchableText === "string") {
+                patch.searchableText = args.searchableText;
+            }
+            await ctx.db.patch(document._id, patch);
             await ctx.db.insert("auditLogs", {
                 actorId: document.ownerId,
                 action: `document.aiProcessed.${args.status}`,
@@ -118,6 +140,7 @@ export const updateDocumentProcessingResults = mutation({
                     categories: args.categories,
                     aiSuggestedRecipients: args.aiSuggestedRecipients,
                     error: args.error,
+                    searchableTextStored: typeof args.searchableText === "string",
                 },
             });
         }
@@ -387,5 +410,161 @@ export const deleteAiCategory = mutation({
       targetId: null, // No specific document, applies globally
       details: { categoryName: args.categoryName },
     });
+  },
+});
+
+// New: Server-side search API for documents (MVP)
+export const searchDocuments = query({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  // Return full document objects so the client can render them the same as `documents` queries.
+  // Using v.any() here to avoid having to enumerate the full schema in the validator.
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    console.log("searchDocuments called with query:", args.query);
+    const searchTerm = (args.query || "").toString().trim();
+    const limit = args.limit ?? 100;
+
+    // Require an authenticated user; only owners and explicitly shared recipients may search documents.
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      console.log("searchDocuments: unauthenticated request - returning empty");
+      return [];
+    }
+
+    // Build set of document IDs shared with this user where they have at least "view" permission.
+    const shares = await ctx.db
+      .query("documentShares")
+      .withIndex("by_recipientId", (q) => q.eq("recipientId", userId))
+      .collect();
+
+    const allowedSharedDocIds = new Set<Id<"documents">>();
+    for (const s of shares) {
+      if (Array.isArray(s.permissionGranted) && s.permissionGranted.includes("view")) {
+        allowedSharedDocIds.add(s.documentId as Id<"documents">);
+      }
+    }
+
+    // Helper to filter results for access and exclude trashed docs.
+    const filterAccessible = (docs: any[]) => {
+      return docs.filter((d) => {
+        if (!d) return false;
+        if (d.status === "trashed") return false;
+        if (d.ownerId === userId) return true;
+        if (allowedSharedDocIds.has(d._id)) return true;
+        return false;
+      });
+    };
+
+    if (searchTerm === "") {
+      // If query is empty, return recent accessible documents owned or shared with the user.
+      const owned = await ctx.db
+        .query("documents")
+        .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
+        .filter((q) => q.neq(q.field("status"), "trashed"))
+        .collect();
+
+      const sharedDocs: any[] = [];
+      for (const docId of Array.from(allowedSharedDocIds)) {
+        const doc = await ctx.db.get(docId as any);
+        if (doc && 'status' in doc && doc.status !== "trashed") sharedDocs.push(doc);
+      }
+
+      const combined = [...owned, ...sharedDocs];
+      const uniqueById = new Map<string, any>();
+      for (const d of combined) {
+        if (d && d._id) uniqueById.set(d._id, d);
+      }
+      return Array.from(uniqueById.values()).slice(0, limit);
+    }
+
+    try {
+      // Try index search first, then filter by access & trashed status.
+      const indexedResults = await ctx.db
+        .query("documents")
+        .withSearchIndex("by_searchable_text", (q) => q.search("searchableText", searchTerm))
+        .collect();
+
+      console.log("searchDocuments: withSearchIndex returned", indexedResults.length, "results");
+      const accessibleIndexed = filterAccessible(indexedResults);
+      if (accessibleIndexed.length > 0) {
+        return accessibleIndexed.slice(0, limit);
+      }
+
+      // If index returned no accessible results, perform normalized substring fallback over accessible docs only.
+      console.log("searchDocuments: index returned no accessible results, running fallback across accessible docs");
+      const ownedDocs = await ctx.db
+        .query("documents")
+        .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
+        .collect();
+
+      const accessibleIds = new Set<Id<"documents">>(ownedDocs.map((d: any) => d._id as Id<"documents">));
+      for (const id of Array.from(allowedSharedDocIds)) accessibleIds.add(id);
+
+      const accessibleDocs: any[] = [];
+      for (const id of accessibleIds) {
+        const doc = await ctx.db.get(id);
+        if (doc && 'status' in doc && doc.status !== "trashed") accessibleDocs.push(doc);
+      }
+
+      // Normalizer: remove control chars, normalize unicode, remove diacritics, lowercase.
+      const normalize = (s: any) => {
+        try {
+          if (!s) return "";
+          const str = s.toString().replace(/[\x00-\x1F\x7F]/g, "");
+          try {
+            return str.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC").toLowerCase();
+          } catch (e) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC").toLowerCase();
+          }
+        } catch (e) {
+          try {
+            return s.toString().toLowerCase();
+          } catch {
+            return "";
+          }
+        }
+      };
+
+      const nSearch = normalize(searchTerm);
+      const matched = accessibleDocs.filter((doc) => {
+        const rawText = `${doc.name ?? ""} ${doc.description ?? ""} ${doc.aiCategories?.join(" ") ?? ""} ${
+          (doc as any).searchableText ?? ""
+        }`;
+        const nText = normalize(rawText);
+        return nText.includes(nSearch);
+      });
+
+      return matched.slice(0, limit);
+    } catch (indexErr) {
+      // If index usage fails, fall back to naive search limited to accessible docs.
+      console.warn("searchDocuments: withSearchIndex failed, falling back to naive accessible search:", indexErr);
+
+      const ownedDocs = await ctx.db
+        .query("documents")
+        .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
+        .collect();
+
+      const accessibleIds = new Set<Id<"documents">>(ownedDocs.map((d: any) => d._id as Id<"documents">));
+      for (const id of Array.from(allowedSharedDocIds)) accessibleIds.add(id);
+
+      const accessibleDocs: any[] = [];
+      for (const id of accessibleIds) {
+        const doc = await ctx.db.get(id as any);
+        if (doc && 'status' in doc && doc.status !== "trashed") accessibleDocs.push(doc);
+      }
+
+      const lower = searchTerm.toLowerCase();
+      const matched = accessibleDocs.filter((doc) => {
+        const text =
+          `${doc.name ?? ""} ${doc.description ?? ""} ${doc.aiCategories?.join(" ") ?? ""} ${
+            (doc as any).searchableText ?? ""
+          }`.toLowerCase();
+        return text.includes(lower);
+      });
+      return matched.slice(0, limit);
+    }
   },
 });

@@ -31,6 +31,7 @@ export const listOwnedDocuments = query({
             aiProcessingError: v.optional(v.string()),
             classified: v.optional(v.boolean()),
             folderId: v.optional(v.id("folders")),
+            searchableText: v.optional(v.string()),
         })
     ),
     handler: async (ctx) => {
@@ -148,6 +149,7 @@ export const _getInternalDocumentDetails = internalQuery({
             aiProcessingError: v.optional(v.string()),
             folderId: v.optional(v.id("folders")),
             classified: v.optional(v.boolean()),
+            searchableText: v.optional(v.string()),
         })
     ),
     handler: async (ctx, args) => {
@@ -232,6 +234,7 @@ export const getAllDocuments = query({
             aiProcessingError: v.optional(v.string()),
             folderId: v.optional(v.id("folders")),
             classified: v.optional(v.boolean()),
+            searchableText: v.optional(v.string())
         })
     ),
     handler: async (ctx, args) => {
@@ -333,6 +336,7 @@ export const getDocumentsInFolder = query({
             aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
             aiProcessingError: v.optional(v.string()),
             classified: v.optional(v.boolean()),
+            searchableText: v.optional(v.string()),
         })
     ),
     handler: async (ctx, args) => {
@@ -385,6 +389,7 @@ export const getDocumentsInAllFolders = query({
             aiProcessingError: v.optional(v.string()),
             classified: v.optional(v.boolean()),
             folderId: v.id("folders"),
+            searchableText: v.optional(v.string()),
         })
     ),
     handler: async (ctx, args) => {
@@ -511,6 +516,7 @@ export const listTrashedDocuments = query({
             aiProcessingError: v.optional(v.string()),
             classified: v.optional(v.boolean()),
             folderId: v.optional(v.id("folders")),
+            searchableText: v.optional(v.string()),
         })
     ),
     handler: async (ctx) => {

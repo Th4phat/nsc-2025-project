@@ -3,7 +3,7 @@ import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { convexAuthNextjsToken, isAuthenticatedNextjs } from "@convex-dev/auth/nextjs/server";
-import { getFileContent, getDocCategories, getAiShareSuggestions, FileContent } from "@/lib/document_processing";
+import { getFileContent, getDocCategories, getAiShareSuggestions, extractSearchableText, ocrExtractFromImageBuffer, FileContent } from "@/lib/document_processing";
 
 export async function GET() {
   return new Response("Method not allowed", {
@@ -85,6 +85,9 @@ let suggestedRecipients: Id<"users">[] | undefined;
         mimeType: file.type,
         fileSize: file.size,
         classified: classified,
+        // If the document is classified we consider it already processed.
+        // Otherwise set status to "processing" until async work updates it.
+        status: classified ? "completed" : "processing",
         categories: [], // Initialize with empty array
         aiSuggestedRecipients: [], // Initialize with empty array
       },
@@ -136,6 +139,26 @@ if (!classified) {
     }
 
         // Update the document with processing results
+        // Also extract and store searchableText for server-side search / future indexing
+        let searchableText: string | undefined = undefined;
+        if (fileContent) {
+          if (fileContent.type === "image") {
+            try {
+              // Run OCR only for images that the user uploaded and persist the result
+              const ocrText = await ocrExtractFromImageBuffer(arrayBuffer, file.type);
+              console.log("ocr: ",ocrText)
+              if (ocrText && ocrText.trim().length > 0) {
+                searchableText = ocrText.toLowerCase().trim();
+              }
+            } catch (ocrErr) {
+              console.warn("OCR failed for uploaded image:", ocrErr);
+            }
+          } else {
+            const s = extractSearchableText(fileContent);
+            if (s && s.length > 0) searchableText = s;
+          }
+        }
+
         await fetchMutation(
           api.document_crud.updateDocumentProcessingResults, // Now it's a public mutation
           {
@@ -144,6 +167,7 @@ if (!classified) {
             aiSuggestedRecipients: suggestedRecipients,
             status: processingStatus,
             error: processingError,
+            searchableText: searchableText || undefined,
           },
           { token }
         );

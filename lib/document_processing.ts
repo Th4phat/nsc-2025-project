@@ -436,14 +436,17 @@ async function ocrExtractFromBuffer(
 
   try {
     const formData = new FormData();
-    // Ensure we pass an ArrayBufferView (Uint8Array) to Blob so TypeScript accepts it.
-    // Buffer (Node) isn't always assignable to BlobPart in TS DOM types, so normalize.
-    const uint8 =
+    // Normalize to a plain Uint8Array backed by a standard ArrayBuffer to avoid
+    // SharedArrayBuffer / ArrayBuffer compatibility issues in TS DOM typings.
+    const rawUint8 =
       Buffer.isBuffer(buffer)
         ? new Uint8Array(buffer)
         : buffer instanceof Uint8Array
         ? buffer
         : new Uint8Array(buffer as ArrayBuffer);
+    // Copy into a fresh Uint8Array to guarantee the underlying buffer is an
+    // ArrayBuffer (not a SharedArrayBuffer), which satisfies Blob's types.
+    const uint8 = Uint8Array.from(rawUint8);
     const blob = new Blob([uint8], { type: mimeType });
 
     const mimeToExt: Record<string, string> = {

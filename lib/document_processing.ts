@@ -436,7 +436,15 @@ async function ocrExtractFromBuffer(
 
   try {
     const formData = new FormData();
-    const blob = new Blob([buffer], { type: mimeType });
+    // Ensure we pass an ArrayBufferView (Uint8Array) to Blob so TypeScript accepts it.
+    // Buffer (Node) isn't always assignable to BlobPart in TS DOM types, so normalize.
+    const uint8 =
+      Buffer.isBuffer(buffer)
+        ? new Uint8Array(buffer)
+        : buffer instanceof Uint8Array
+        ? buffer
+        : new Uint8Array(buffer as ArrayBuffer);
+    const blob = new Blob([uint8], { type: mimeType });
 
     const mimeToExt: Record<string, string> = {
       "image/jpeg": "jpg",

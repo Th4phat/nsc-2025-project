@@ -66,7 +66,7 @@ export const getUniqueAiCategories = query({
             throw new Error("Authenticated user not found.");
         }
 
-        // Get all owned documents that are completed and have aiCategories
+        // Only consider documents owned by the current user (exclude shared documents)
         const ownedDocumentsWithCategories = await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
@@ -77,33 +77,9 @@ export const getUniqueAiCategories = query({
             )
             .collect();
 
-        // Get all shared documents that are completed and have aiCategories
-        const shares = await ctx.db
-            .query("documentShares")
-            .withIndex("by_recipientId", (q) => q.eq("recipientId", userId))
-            .collect();
-
-        const sharedDocumentIds = shares.map((share) => share.documentId);
-        const sharedDocumentsWithCategories = (
-            await Promise.all(
-                sharedDocumentIds.map((docId) => ctx.db.get(docId)),
-            )
-        ).filter(
-            (doc) =>
-                doc &&
-                doc.status === "completed" &&
-                doc.aiCategories &&
-                doc.aiCategories.length > 0,
-        );
-
-        const allRelevantDocuments = [
-            ...ownedDocumentsWithCategories,
-            ...sharedDocumentsWithCategories,
-        ];
-
         const categoriesMap = new Map<string, { _id: Id<"documents">, name: string }[]>();
 
-        for (const doc of allRelevantDocuments) {
+        for (const doc of ownedDocumentsWithCategories) {
             if (doc?.aiCategories) {
                 for (const category of doc.aiCategories) {
                     if (!categoriesMap.has(category)) {

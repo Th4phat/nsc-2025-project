@@ -25,7 +25,7 @@ import { th } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
 import { UploadModal } from "@/components/UploadModal";
 import { DocModal } from "@/components/DocumentModal";
-
+const SEARCH_THRESHOLD = 0.6
 const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = {
   "application/pdf": {
     icon: FileText,
@@ -63,27 +63,270 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Calculate similarity between two strings as a value between 0 and 1.
+ * Uses a normalized Levenshtein distance: 1 - (distance / maxLen).
+ * Kept local here so the UI can perform "loosely" matching client-side.
+ */
+function calculateTextSimilarity(a: string, b: string): number {
+  const s1 = (a ?? "").toString();
+  const s2 = (b ?? "").toString();
+  if (s1 === s2) return 1;
+  const len1 = s1.length;
+  const len2 = s2.length;
+  if (len1 === 0 || len2 === 0) return 0;
+
+  const prevRow: number[] = new Array(len2 + 1);
+  for (let j = 0; j <= len2; j++) prevRow[j] = j;
+
+  for (let i = 1; i <= len1; i++) {
+    const currRow: number[] = new Array(len2 + 1);
+    currRow[0] = i;
+    for (let j = 1; j <= len2; j++) {
+      const cost = s1.charAt(i - 1) === s2.charAt(j - 1) ? 0 : 1;
+      currRow[j] = Math.min(
+        prevRow[j] + 1,
+        currRow[j - 1] + 1,
+        prevRow[j - 1] + cost
+      );
+    }
+    for (let j = 0; j <= len2; j++) prevRow[j] = currRow[j];
+  }
+
+  const distance = prevRow[len2];
+  const maxLen = Math.max(len1, len2);
+  return Math.max(0, 1 - distance / maxLen);
+}
+// add some comment
+
 // Small component that highlights occurrences of `query` inside `text`.
-// Uses a <mark> with subtle styling so the highlight is visible in both light/dark.
-function HighlightedText({ text, query }: { text: string; query: string }) {
+// Supports two modes:
+//  - exact behavior (default): highlights exact substring matches (case-insensitive)
+//  - loosely behavior: finds the best-matching substring and highlights matching characters
+//    while showing substituted/extra characters with a strike-through for clarity.
+function HighlightedText({
+  text,
+  query,
+  loosely = false,
+}: {
+  text: string;
+  query: string;
+  loosely?: boolean;
+}) {
   if (!query) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === query.toLowerCase() ? (
-          <mark
-            key={i}
-            className="bg-yellow-200 dark:bg-yellow-600/40 px-0.5 rounded"
-          >
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
+
+  // helper: normalized string used for similarity/alignments
+  const normalizeForCompare = (s: string) => {
+    try {
+      return s
+        .toString()
+        .replace(/[\x00-\x1F\x7F]/g, "")
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .normalize("NFC")
+        .toLowerCase();
+    } catch {
+      return s.toString().toLowerCase();
+    }
+  };
+
+  // If not using loosely matching, fallback to previous exact highlighting.
+  if (!loosely) {
+    const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark
+              key={i}
+              className="bg-yellow-200 dark:bg-yellow-600/40 px-0.5 rounded"
+            >
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  }
+
+  // LOOSY mode:
+  const qNorm = normalizeForCompare(query);
+  const textNorm = normalizeForCompare(text);
+
+  // Find best substring in text to align against the query.
+  // We try sliding windows sized around the query length (±2) and per-word tokens.
+  let best = { start: 0, end: Math.min(text.length, qNorm.length + 3), score: -1 };
+
+  // Helper to compute similarity between original text slices using the existing function.
+  const scoreSlice = (slice: string) => {
+    const s = calculateTextSimilarity(normalizeForCompare(slice), qNorm);
+    return s;
+  };
+
+  // Try token-based candidates first (split by whitespace)
+  const tokens = text.split(/\s+/).filter(Boolean);
+  let pos = 0;
+  for (const t of tokens) {
+    const idx = text.indexOf(t, pos);
+    pos = idx + t.length;
+    const s = scoreSlice(t);
+    if (s > best.score) {
+      best = { start: idx, end: idx + t.length, score: s };
+    }
+    // also try expanding to include neighboring tokens (up to 3 tokens)
+    let acc = t;
+    let epos = idx + t.length;
+    let nextIdx = epos;
+    for (let k = 1; k < 3; k++) {
+      // find next token start after epos
+      const nextToken = tokens[tokens.indexOf(t) + k];
+      if (!nextToken) break;
+      const nextPos = text.indexOf(nextToken, nextIdx);
+      if (nextPos === -1) break;
+      acc = text.slice(idx, nextPos + nextToken.length);
+      epos = nextPos + nextToken.length;
+      const ss = scoreSlice(acc);
+      if (ss > best.score) {
+        best = { start: idx, end: epos, score: ss };
+      }
+      nextIdx = epos;
+    }
+  }
+
+  // Also try sliding windows across full text (lengths around query length)
+  const qLen = qNorm.length;
+  const minW = Math.max(1, qLen - 2);
+  const maxW = qLen + 2;
+  for (let w = minW; w <= maxW; w++) {
+    for (let i = 0; i + w <= text.length; i++) {
+      const slice = text.slice(i, i + w);
+      const s = scoreSlice(slice);
+      if (s > best.score) {
+        best = { start: i, end: i + w, score: s };
+      }
+    }
+  }
+
+  // If no decent match (score < 0.5), fallback to simple substring highlighting.
+  if (best.score < 0.5) {
+    const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark
+              key={i}
+              className="bg-yellow-200 dark:bg-yellow-600/40 px-0.5 rounded"
+            >
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  }
+
+  const pre = text.slice(0, best.start);
+  const matchSlice = text.slice(best.start, best.end);
+  const post = text.slice(best.end);
+
+  // Compute alignment between qNorm and matchSlice (on normalized strings) and backtrace
+  const a = qNorm;
+  const b = normalizeForCompare(matchSlice);
+
+  const m = a.length;
+  const n = b.length;
+  // build DP
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    new Array(n + 1).fill(0)
   );
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  // backtrace to produce ops for each character in b (matchSlice)
+  type Op = "match" | "sub" | "ins";
+  const ops: Op[] = [];
+  let i = m;
+  let j = n;
+  const charsOrigB: string[] = matchSlice.split("");
+  // We'll construct ops in reverse for b; when we move left (j-1) it's an insertion in b => mark that char as 'ins'
+  // when diagonal -> match or sub
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] && a[i - 1] === b[j - 1]) {
+      ops.push("match");
+      i--;
+      j--;
+    } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+      // substitution
+      ops.push("sub");
+      i--;
+      j--;
+    } else if (j > 0 && dp[i][j] === dp[i][j - 1] + 1) {
+      // insertion in b (extra char in text)
+      ops.push("ins");
+      j--;
+    } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
+      // deletion from b (char in query missing from text) -> doesn't create an op for b
+      i--;
+    } else {
+      // fallback consume remaining
+      if (j > 0) {
+        ops.push("ins");
+        j--;
+      } else if (i > 0) {
+        i--;
+      }
+    }
+  }
+  ops.reverse(); // now aligns with charsB order
+
+  // Render
+  const nodes: React.ReactNode[] = [];
+  nodes.push(<span key="pre">{pre}</span>);
+  for (let k = 0; k < charsOrigB.length; k++) {
+    const ch = charsOrigB[k];
+    const op = ops[k] ?? "ins";
+    if (op === "match") {
+      nodes.push(
+        <mark
+          key={`m-${best.start + k}`}
+          className="bg-yellow-200 dark:bg-yellow-600/40 px-0.5 rounded"
+        >
+          {ch}
+        </mark>
+      );
+    } else if (op === "sub") {
+      nodes.push(
+        <span
+          key={`s-${best.start + k}`}
+          className="line-through decoration-red-400 decoration-1"
+        >
+          {ch}
+        </span>
+      );
+    } else {
+      // insertion / extra char in text - show strike but slightly dim
+      nodes.push(
+        <span
+          key={`i-${best.start + k}`}
+          className="line-through text-muted-foreground"
+        >
+          {ch}
+        </span>
+      );
+    }
+  }
+  nodes.push(<span key="post">{post}</span>);
+  return <>{nodes}</>;
 }
 
 // Helper: return a short excerpt from `text` centered on the first occurrence of `query`.
@@ -125,9 +368,7 @@ export default function Page() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<string | null>(null); // yyyy-mm-dd
   const [dateTo, setDateTo] = useState<string | null>(null); // yyyy-mm-dd
-  const [matchMode, setMatchMode] = useState<
-    "default" | "phrase" | "whole_word" | "case_sensitive"
-  >("default");
+  const [matchMode, setMatchMode] = useState<"exact" | "loosely">("exact");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   const fileTypeOptions = useMemo(() => {
@@ -143,7 +384,7 @@ export default function Page() {
     setCategoryFilter(null);
     setDateFrom(null);
     setDateTo(null);
-    setMatchMode("default");
+    setMatchMode("exact");
     setIsAdvancedOpen(false);
     setSearchTerm("");
   }, []);
@@ -208,18 +449,41 @@ export default function Page() {
 
     const buildMatcher = (term: string) => {
       if (!term) return () => true;
-      if (matchMode === "case_sensitive") {
-        return (text: string) => (text || "").includes(term);
+
+      // exact: normalized, case-insensitive substring match (strict substring)
+      if (matchMode === "exact") {
+        const nTerm = normalize(term).toLowerCase();
+        return (text: string) => normalize(text || "").toLowerCase().includes(nTerm);
       }
-      if (matchMode === "whole_word") {
-        const pattern = new RegExp(`\\b${escapeRegExp(term)}\\b`, "iu");
-        return (text: string) => !!text.match(pattern);
+
+      // loosely: check for normalized substring OR any token with >= SEARCH_THRESHOLD similarity
+      if (matchMode === "loosely") {
+        const nTerm = normalize(term).toLowerCase();
+        return (text: string) => {
+          const nText = normalize(text || "").toLowerCase();
+          if (nText.includes(nTerm)) return true;
+
+          // Split text into tokens/words and test similarity against term
+          const tokens = nText.split(/\s+/).filter(Boolean);
+          for (const tok of tokens) {
+            if (calculateTextSimilarity(tok, nTerm) >= SEARCH_THRESHOLD) return true;
+          }
+
+          // Also check longer substrings (sliding window) for matches if term is multi-word
+          if (nTerm.includes(" ")) {
+            const windowSize = Math.max(1, nTerm.split(/\s+/).length);
+            const words = nText.split(/\s+/).filter(Boolean);
+            for (let i = 0; i <= Math.max(0, words.length - windowSize); i++) {
+              const slice = words.slice(i, i + windowSize).join(" ");
+              if (calculateTextSimilarity(slice, nTerm) >= SEARCH_THRESHOLD) return true;
+            }
+          }
+
+          return false;
+        };
       }
-      if (matchMode === "phrase") {
-        const pattern = new RegExp(escapeRegExp(term), "iu");
-        return (text: string) => !!text.match(pattern);
-      }
-      // default: normalize & case-insensitive substring
+
+      // Fallback: behave like exact
       const nTerm = normalize(term).toLowerCase();
       return (text: string) => normalize(text || "").toLowerCase().includes(nTerm);
     };
@@ -381,7 +645,7 @@ export default function Page() {
                   )}
                   <div className="flex-grow truncate mr-4">
                     <div className="font-medium text-slate-900 dark:text-slate-100 truncate flex items-center">
-                      <HighlightedText text={document.name} query={searchTerm} />
+                      <HighlightedText text={document.name} query={searchTerm} loosely={matchMode === "loosely"} />
                       {unreadDocumentIds.has(document._id) && (
                         <span className="ml-2 h-2 w-2 rounded-full bg-red-500 inline-block"></span>
                       )}
@@ -400,6 +664,7 @@ export default function Page() {
                         <HighlightedText
                           text={getSnippet((document as any).searchableText, searchTerm)}
                           query={searchTerm}
+                          loosely={matchMode === "loosely"}
                         />
                       </div>
                     ) : null}

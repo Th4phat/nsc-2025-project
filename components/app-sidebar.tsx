@@ -185,7 +185,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {/* <NavMain items={topLevelItems} label="เอกสาร" /> */}
         <NavProjects projects={data.projects} label={"ทั่วไป"} />
-        <NavMain items={aiCategoryNavItems} label="หมวดหมู่ AI" />
+        <NavMain items={aiCategoryNavItems} label="หมวดหมู่ AI" placeholder="ยังไม่มีหมวดหมู่ AI" />
         <NavMain items={folderItems} label="โฟลเดอร์" />
         {adminNavItems.length > 0 && <NavProjects projects={adminNavItems} label="อื่น ๆ" />}
         

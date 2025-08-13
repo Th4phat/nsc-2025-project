@@ -18,10 +18,12 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { Folder } from "lucide-react";
+
 export function NavMain({
   items,
   label,
-  onMoveClick
+  onMoveClick,
+  placeholder,
 }: {
   items: {
     title: string
@@ -36,8 +38,27 @@ export function NavMain({
     actions?: React.ReactNode;
   }[],
   label: string,
-  onMoveClick?: (documentId: string) => void; 
+  onMoveClick?: (documentId: string) => void;
+  placeholder?: string;
 }) {
+  // Show a friendly placeholder when there are no items
+  if (!items || items.length === 0) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel>{label}</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <div className="w-full px-3 py-2 text-sm text-gray-500">
+                {placeholder ?? "ยังไม่มีหมวดหมู่"}
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+    );
+  }
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>

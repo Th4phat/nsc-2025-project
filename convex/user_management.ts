@@ -128,12 +128,12 @@ export const updateUser = mutationWithAuth(["user:update:any"])({
       await ctx.db.patch(userId, updateFields);
     }
 
-    // Handle bio update separately as it's in the profiles table
+    
     if (bio !== undefined) {
       if (user.profileId) {
         await ctx.db.patch(user.profileId, { bio });
       } else {
-        // If no profile exists, create one
+        
         const newProfileId = await ctx.db.insert("profiles", {
           userId: userId,
           bio: bio,
@@ -142,7 +142,7 @@ export const updateUser = mutationWithAuth(["user:update:any"])({
       }
     }
 
-    // Log the action to auditLogs
+    
     const actor = await ctx.auth.getUserIdentity();
     if (actor) {
       const actorUser = await ctx.db
@@ -184,7 +184,7 @@ export const updateControlledDepartments = mutationWithAuth(["user:update:any"])
       throw new Error("User not found");
     }
 
-    // Validate that the user has the 'Head of Department' role
+    
     if (!user.roleId) {
       throw new Error("User does not have a role assigned.");
     }
@@ -193,7 +193,7 @@ export const updateControlledDepartments = mutationWithAuth(["user:update:any"])
       throw new Error("User must have perm to control departments.");
     }
 
-    // Validate all department IDs exist
+    
     for (const deptId of controlledDepartments) {
       const department = await ctx.db.get(deptId);
       if (!department) {
@@ -203,7 +203,7 @@ export const updateControlledDepartments = mutationWithAuth(["user:update:any"])
 
     await ctx.db.patch(userId, { controlledDepartments });
 
-    // Log the action to auditLogs
+    
     const actor = await ctx.auth.getUserIdentity();
     if (actor) {
       const actorUser = await ctx.db
@@ -226,7 +226,7 @@ export const updateControlledDepartments = mutationWithAuth(["user:update:any"])
   },
 });
 
-// Internal mutation to get the current authenticated user's ID for audit logging
+
 export const getAuthenticatedUserId = internalMutation({
   args: {},
   returns: v.union(v.id("users"), v.null()),
@@ -333,7 +333,7 @@ export const createUser = mutation({
     departmentId: v.id("departments"),
     roleId: v.id("roles"),
   },
-  returns: v.null(), // Returns null because creation is now asynchronous
+  returns: v.null(), 
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new ConvexError("Not authenticated");
@@ -346,7 +346,7 @@ export const createUser = mutation({
       throw new ConvexError("Unauthorized: User does not have 'user:create' permission.");
     }
 
-    // Schedule the action to run asynchronously
+    
     await ctx.scheduler.runAfter(0, internal.user_management.createAccountAndUser, args);
     return null;
   },
@@ -386,7 +386,7 @@ export const batchCreateUsers = action({
 
     const createdUserIds: Id<"users">[] = [];
 
-    // Fetch all departments and roles to map names to IDs
+    
     const departments = await ctx.runQuery(internal.user_management.getAllDepartments, {});
     const roles = await ctx.runQuery(internal.user_management.getAllRoles, {});
 
@@ -417,7 +417,7 @@ export const batchCreateUsers = action({
   },
 });
 
-// Internal queries to fetch all departments and roles for batch creation
+
 export const getAllDepartments = internalQuery({
   args: {},
   returns: v.array(
@@ -461,15 +461,15 @@ export const deleteUser = mutationWithAuth(["user:delete:any"])({
       throw new Error("User not found");
     }
 
-    // Delete associated profile if it exists
+    
     if (user.profileId) {
       await ctx.db.delete(user.profileId);
     }
 
-    // Delete the user
+    
     await ctx.db.delete(userId);
 
-    // Log the action to auditLogs
+    
     const actor = await ctx.auth.getUserIdentity();
     if (actor) {
       const actorUser = await ctx.db

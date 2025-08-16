@@ -123,8 +123,8 @@ export const getSharedUsersForDocument = query({
         v.object({
             user: v.object({
                 _id: v.id("users"),
-                name: v.optional(v.string()), // Optional because user name might not be set
-                email: v.string(), // Email should always be present
+                name: v.optional(v.string()), 
+                email: v.string(), 
             }),
             permissions: v.array(
                 v.union(
@@ -176,22 +176,22 @@ export const getUserDocumentPermissions = query({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) {
-            // If no authenticated user, they have no permissions on any document
+            
             return [];
         }
 
         const document = await ctx.db.get(args.documentId);
         if (!document) {
-            // Document not found, no permissions
+            
             return [];
         }
 
-        // If the user is the owner, they have all permissions
+        
         if (document.ownerId === userId) {
             return ["view", "download", "resend"] as ("view" | "download" | "resend")[];
         }
 
-        // Check for specific permissions granted through sharing
+        
         const share = await ctx.db
             .query("documentShares")
             .withIndex("by_document_recipient", (q) =>
@@ -199,7 +199,7 @@ export const getUserDocumentPermissions = query({
             )
             .unique();
 
-        // Return the permissions granted through the share, or an empty array if no share exists
+        
         return share?.permissionGranted || [];
     },
 });
@@ -227,7 +227,7 @@ export const getSharedDocuments = query({
             aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
             aiProcessingError: v.optional(v.string()),
             folderId: v.optional(v.id("folders")),
-            // Include searchableText in returned document shape to match stored documents
+            
             searchableText: v.optional(v.string()),
         })
     ),
@@ -298,7 +298,7 @@ export const getUnreadDocumentsWithDetails = query({
             aiProcessingError: v.optional(v.string()),
             folderId: v.optional(v.id("folders")),
             classified: v.optional(v.boolean()),
-            searchableText: v.optional(v.string()), // Added searchableText
+            searchableText: v.optional(v.string()), 
             shareCreator: v.object({
                 _id: v.id("users"),
                 name: v.optional(v.string()),
@@ -369,9 +369,9 @@ export const markDocumentAsRead = mutation({
         if (userDocumentStatus) {
             await ctx.db.patch(userDocumentStatus._id, { isRead: true });
         } else {
-            // Optionally, create a record if it doesn't exist, marking it as read.
-            // This can be useful if a user interacts with a document they received
-            // before this notification system was in place.
+            
+            
+            
             await ctx.db.insert("userDocumentStatus", {
                 userId: userId,
                 documentId: args.documentId,
@@ -402,7 +402,7 @@ export const sendDocumentToDepartment = mutationWithAuth([
             .collect();
 
         for (const member of departmentMembers) {
-            // Avoid sharing with oneself if that's the desired logic
+            
             if (member._id === user._id) {
                 continue;
             }
@@ -506,7 +506,7 @@ export const listSharedDocuments = query({
             aiSuggestedRecipients: v.optional(v.array(v.id("users"))),
             aiProcessingError: v.optional(v.string()),
             classified: v.optional(v.boolean()),
-            // Include searchableText in returned document shape to match stored documents
+            
             searchableText: v.optional(v.string()),
             sharerId: v.id("users"),
         })
@@ -527,7 +527,7 @@ export const listSharedDocuments = query({
         const sharedDocuments = [];
         for (const share of sharedDocumentShares) {
             const document = await ctx.db.get(share.documentId);
-            if (document && document.status === "completed") { // Only return active documents
+            if (document && document.status === "completed") { 
                 sharedDocuments.push({
                     ...document,
                     sharerId: share.sharerId,

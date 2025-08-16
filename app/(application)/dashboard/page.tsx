@@ -49,7 +49,7 @@ const fileTypeIcons: Record<string, { icon: LucideIcon; colorClass: string }> = 
   },
 };
 
-// Friendly short labels for UI (avoid rendering full mime strings)
+
 const mimeLabels: Record<string, string> = {
   "application/pdf": "PDF",
   "image/png": "PNG",
@@ -57,8 +57,8 @@ const mimeLabels: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "XLSX",
 };
- 
-// Helper to safely escape search terms for RegExp
+
+
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -97,13 +97,13 @@ function calculateTextSimilarity(a: string, b: string): number {
   const maxLen = Math.max(len1, len2);
   return Math.max(0, 1 - distance / maxLen);
 }
-// add some comment
 
-// Small component that highlights occurrences of `query` inside `text`.
-// Supports two modes:
-//  - exact behavior (default): highlights exact substring matches (case-insensitive)
-//  - loosely behavior: finds the best-matching substring and highlights matching characters
-//    while showing substituted/extra characters with a strike-through for clarity.
+
+
+
+
+
+
 function HighlightedText({
   text,
   query,
@@ -115,7 +115,7 @@ function HighlightedText({
 }) {
   if (!query) return <>{text}</>;
 
-  // helper: normalized string used for similarity/alignments
+
   const normalizeForCompare = (s: string) => {
     try {
       return s
@@ -130,7 +130,7 @@ function HighlightedText({
     }
   };
 
-  // If not using loosely matching, fallback to previous exact highlighting.
+
   if (!loosely) {
     const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
     return (
@@ -151,21 +151,21 @@ function HighlightedText({
     );
   }
 
-  // LOOSY mode:
+
   const qNorm = normalizeForCompare(query);
   const textNorm = normalizeForCompare(text);
 
-  // Find best substring in text to align against the query.
-  // We try sliding windows sized around the query length (±2) and per-word tokens.
+
+
   let best = { start: 0, end: Math.min(text.length, qNorm.length + 3), score: -1 };
 
-  // Helper to compute similarity between original text slices using the existing function.
+
   const scoreSlice = (slice: string) => {
     const s = calculateTextSimilarity(normalizeForCompare(slice), qNorm);
     return s;
   };
 
-  // Try token-based candidates first (split by whitespace)
+
   const tokens = text.split(/\s+/).filter(Boolean);
   let pos = 0;
   for (const t of tokens) {
@@ -175,12 +175,12 @@ function HighlightedText({
     if (s > best.score) {
       best = { start: idx, end: idx + t.length, score: s };
     }
-    // also try expanding to include neighboring tokens (up to 3 tokens)
+
     let acc = t;
     let epos = idx + t.length;
     let nextIdx = epos;
     for (let k = 1; k < 3; k++) {
-      // find next token start after epos
+
       const nextToken = tokens[tokens.indexOf(t) + k];
       if (!nextToken) break;
       const nextPos = text.indexOf(nextToken, nextIdx);
@@ -195,7 +195,7 @@ function HighlightedText({
     }
   }
 
-  // Also try sliding windows across full text (lengths around query length)
+
   const qLen = qNorm.length;
   const minW = Math.max(1, qLen - 2);
   const maxW = qLen + 2;
@@ -209,7 +209,7 @@ function HighlightedText({
     }
   }
 
-  // If no decent match (score < 0.5), fallback to simple substring highlighting.
+
   if (best.score < 0.5) {
     const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
     return (
@@ -234,13 +234,13 @@ function HighlightedText({
   const matchSlice = text.slice(best.start, best.end);
   const post = text.slice(best.end);
 
-  // Compute alignment between qNorm and matchSlice (on normalized strings) and backtrace
+
   const a = qNorm;
   const b = normalizeForCompare(matchSlice);
 
   const m = a.length;
   const n = b.length;
-  // build DP
+
   const dp: number[][] = Array.from({ length: m + 1 }, () =>
     new Array(n + 1).fill(0)
   );
@@ -252,33 +252,33 @@ function HighlightedText({
       dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
     }
   }
-  // backtrace to produce ops for each character in b (matchSlice)
+
   type Op = "match" | "sub" | "ins";
   const ops: Op[] = [];
   let i = m;
   let j = n;
   const charsOrigB: string[] = matchSlice.split("");
-  // We'll construct ops in reverse for b; when we move left (j-1) it's an insertion in b => mark that char as 'ins'
-  // when diagonal -> match or sub
+
+
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] && a[i - 1] === b[j - 1]) {
       ops.push("match");
       i--;
       j--;
     } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
-      // substitution
+
       ops.push("sub");
       i--;
       j--;
     } else if (j > 0 && dp[i][j] === dp[i][j - 1] + 1) {
-      // insertion in b (extra char in text)
+
       ops.push("ins");
       j--;
     } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
-      // deletion from b (char in query missing from text) -> doesn't create an op for b
+
       i--;
     } else {
-      // fallback consume remaining
+
       if (j > 0) {
         ops.push("ins");
         j--;
@@ -287,9 +287,9 @@ function HighlightedText({
       }
     }
   }
-  ops.reverse(); // now aligns with charsB order
+  ops.reverse();
 
-  // Render
+
   const nodes: React.ReactNode[] = [];
   nodes.push(<span key="pre">{pre}</span>);
   for (let k = 0; k < charsOrigB.length; k++) {
@@ -314,7 +314,7 @@ function HighlightedText({
         </span>
       );
     } else {
-      // insertion / extra char in text - show strike but slightly dim
+
       nodes.push(
         <span
           key={`i-${best.start + k}`}
@@ -329,9 +329,9 @@ function HighlightedText({
   return <>{nodes}</>;
 }
 
-// Helper: return a short excerpt from `text` centered on the first occurrence of `query`.
-// If the query isn't found, return the start of the text (trimmed).
-// radius controls how many characters appear on each side of the match.
+
+
+
 function getSnippet(text: string, query: string, radius = 80) {
   if (!text) return "";
   const plain = text.toString();
@@ -362,12 +362,12 @@ export default function Page() {
     useState<Doc<"documents"> | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Advanced filter state (client-side)
+
   const [authorFilter, setAuthorFilter] = useState<string | null>(null);
   const [mimeTypesFilter, setMimeTypesFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [dateFrom, setDateFrom] = useState<string | null>(null); // yyyy-mm-dd
-  const [dateTo, setDateTo] = useState<string | null>(null); // yyyy-mm-dd
+  const [dateFrom, setDateFrom] = useState<string | null>(null);
+  const [dateTo, setDateTo] = useState<string | null>(null);
   const [matchMode, setMatchMode] = useState<"exact" | "loosely">("exact");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
@@ -403,14 +403,14 @@ export default function Page() {
     {},
   );
 
-  // Always call the server-side search query but pass an empty string when there's no search term.
-  // The server will return all documents when query is empty; the UI chooses which source to use.
+
+
   const searchResults = useQuery(api.document_crud.searchDocuments, {
     query: searchTerm || "",
   });
   console.log(searchResults);
 
-  // Derived options from client data (computed from loaded documents)
+
   const availableAuthors = useMemo(() => {
     const map = new Map<string, number>();
     (documents || []).forEach((d: any) => {
@@ -432,7 +432,7 @@ export default function Page() {
   const filteredDocuments = useMemo(() => {
     const docs: Doc<"documents">[] = (documents || []) as Doc<"documents">[];
 
-    // Normalizer helpers
+
     const normalize = (s: any) => {
       try {
         if (!s) return "";
@@ -450,26 +450,26 @@ export default function Page() {
     const buildMatcher = (term: string) => {
       if (!term) return () => true;
 
-      // exact: normalized, case-insensitive substring match (strict substring)
+
       if (matchMode === "exact") {
         const nTerm = normalize(term).toLowerCase();
         return (text: string) => normalize(text || "").toLowerCase().includes(nTerm);
       }
 
-      // loosely: check for normalized substring OR any token with >= SEARCH_THRESHOLD similarity
+
       if (matchMode === "loosely") {
         const nTerm = normalize(term).toLowerCase();
         return (text: string) => {
           const nText = normalize(text || "").toLowerCase();
           if (nText.includes(nTerm)) return true;
 
-          // Split text into tokens/words and test similarity against term
+
           const tokens = nText.split(/\s+/).filter(Boolean);
           for (const tok of tokens) {
             if (calculateTextSimilarity(tok, nTerm) >= SEARCH_THRESHOLD) return true;
           }
 
-          // Also check longer substrings (sliding window) for matches if term is multi-word
+
           if (nTerm.includes(" ")) {
             const windowSize = Math.max(1, nTerm.split(/\s+/).length);
             const words = nText.split(/\s+/).filter(Boolean);
@@ -483,7 +483,7 @@ export default function Page() {
         };
       }
 
-      // Fallback: behave like exact
+
       const nTerm = normalize(term).toLowerCase();
       return (text: string) => normalize(text || "").toLowerCase().includes(nTerm);
     };
@@ -491,34 +491,33 @@ export default function Page() {
     const matcher = buildMatcher(searchTerm);
 
     const matchesFilters = (doc: Doc<"documents">) => {
-      // Access: document should already be in `documents` query (owned/shared)
-      // Owner filter
+
+
       if (authorFilter && doc.ownerId !== authorFilter) return false;
 
-      // mime types
+
       if (mimeTypesFilter.length > 0 && !mimeTypesFilter.includes(doc.mimeType)) return false;
 
-      // category
+
       if (categoryFilter) {
         if (!Array.isArray(doc.aiCategories) || !doc.aiCategories.includes(categoryFilter)) return false;
       }
 
-      // date range
+
       if (dateFrom) {
         const fromMs = new Date(dateFrom).getTime();
         if (doc._creationTime < fromMs) return false;
       }
       if (dateTo) {
-        // include the whole day of dateTo
+
         const toMs = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
         if (doc._creationTime > toMs) return false;
       }
 
-      // text search
+
       if (searchTerm.trim().length > 0) {
         const aggregate =
-          `${doc.name ?? ""} ${doc.description ?? ""} ${(doc.aiCategories ?? []).join(" ")} ${
-            (doc.searchableText || "")
+          `${doc.name ?? ""} ${doc.description ?? ""} ${(doc.aiCategories ?? []).join(" ")} ${(doc.searchableText || "")
           }`;
         return matcher(aggregate);
       }
@@ -622,8 +621,8 @@ export default function Page() {
                 <li
                   key={document._id}
                   className={`flex items-center px-4 py-3 cursor-pointer ${isSelected
-                      ? "bg-blue-50 dark:bg-blue-950/50 border-l-4 border-blue-500"
-                      : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    ? "bg-blue-50 dark:bg-blue-950/50 border-l-4 border-blue-500"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     }`}
                   onClick={() => handleDocumentClick(document)}
                 >

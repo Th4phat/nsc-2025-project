@@ -45,7 +45,7 @@ export const getUserRoleAndControlledDepartments = query({
   returns: v.union(
     v.object({
       roleName: v.string(),
-      rank: v.number(), // Add rank to the return type
+      rank: v.number(), 
       permissions: v.array(v.string()),
       controlledDepartments: v.optional(v.array(v.id("departments"))),
     }),
@@ -53,7 +53,7 @@ export const getUserRoleAndControlledDepartments = query({
   ),
   handler: async (ctx): Promise<{
     roleName: string;
-    rank: number; // Add rank to the return type
+    rank: number; 
     permissions: string[];
     controlledDepartments?: Id<"departments">[];
   } | null> => {
@@ -90,7 +90,7 @@ export const getMyProfile = queryWithAuth(["profile:read:own"])({
 
 export const updateUserProfile = mutationWithAuth(["profile:update:own"])( {
 	 args: {
-	  //  name: v.string(),
+	  
       phone:v.string(),
 	   bio: v.string(),
 	   title: v.string(),
@@ -109,13 +109,13 @@ export const updateUserProfile = mutationWithAuth(["profile:update:own"])( {
 	     throw new Error("User not found");
 	   }
 
-	  //  await ctx.db.patch(user._id, { name: args.name });
+	  
 
 	   if (user.profileId) {
 	     await ctx.db.patch(user.profileId, {
           phone: args.phone,
 	       bio: args.bio,
-	      //  title: args.title,
+	      
 	       address: args.location,
 	       website: args.website,
 	     });
@@ -124,7 +124,7 @@ export const updateUserProfile = mutationWithAuth(["profile:update:own"])( {
 });
 export const getAllUsers = query({
   args: {},
-  // Returns an array of user objects, each containing _id, name, email, and department details
+  
   returns: v.array(
     v.object({
       _id: v.id("users"),
@@ -142,10 +142,10 @@ export const getAllUsers = query({
     })
   ),
   handler: async (ctx) => {
-    // Fetch all users from the 'users' table
+    
     const users = await ctx.db.query("users").collect();
 
-    // Fetch department details for users who have a departmentId
+    
     const usersWithDetails = await Promise.all(
       users.map(async (user) => {
         let department = undefined;
@@ -204,7 +204,7 @@ export const listUsersForShare = query({
   handler: async (ctx, args) => {
     let users = [];
 
-    // If there's a search query, perform a filtered search
+    
     if (args.searchQuery) {
       users = await ctx.db
         .query("users")
@@ -213,17 +213,17 @@ export const listUsersForShare = query({
         )
         .collect();
     } else {
-      // Otherwise, return a default list (e.g., all active users up to a limit)
-      // This is a placeholder; consider a more robust way to recommend users without a search query.
+      
+      
       users = await ctx.db
         .query("users")
-        .take(10); // Limit to 10 users for brevity
+        .take(10); 
     }
 
-    // Filter out the current user (if authenticated) from the list
+    
     const currentUserId = (await ctx.auth.getUserIdentity())?.subject;
     
-    // Convert to the desired return format
+    
     return users.map(user => ({
       _id: user._id,
       name: user.name,
@@ -239,7 +239,7 @@ export const getUsersByIds = query({
   returns: v.array(
     v.object({
       _id: v.id("users"),
-      name: v.optional(v.union(v.string(), v.null())), // Allow null for name
+      name: v.optional(v.union(v.string(), v.null())), 
       email: v.string(),
     })
   ),
@@ -250,7 +250,7 @@ export const getUsersByIds = query({
         if (user) {
           return {
             _id: user._id,
-            name: user.name ?? null, // Ensure null if undefined
+            name: user.name ?? null, 
             email: user.email,
           };
         }
@@ -331,7 +331,7 @@ export const getDepartmentMembers = queryWithAuth(["user:list:department"])({
     const user: Doc<"users"> | null = await ctx.runQuery(internal.auth.getUser);
 
     if (!user || !user.departmentId) {
-      // Or throw new ConvexError("User is not in a department.");
+      
       return [];
     }
 

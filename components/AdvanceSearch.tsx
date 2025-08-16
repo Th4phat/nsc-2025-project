@@ -58,46 +58,6 @@ function fromYMD(ymd: string | null): Date | undefined {
   return new Date(y, m - 1, d);
 }
 
-/**
- * Calculate similarity between two strings as a value between 0 and 1.
- * Uses a normalized Levenshtein distance: 1 - (distance / maxLen).
- *
- * Returns:
- *  - 1.0 for identical strings
- *  - 0.0 for completely different strings
- */
-function calculateTextSimilarity(a: string, b: string): number {
-  const s1 = a ?? "";
-  const s2 = b ?? "";
-  if (s1 === s2) return 1;
-  const len1 = s1.length;
-  const len2 = s2.length;
-  if (len1 === 0 || len2 === 0) return 0;
-
-  // Levenshtein distance (iterative, O(len1 * len2) time, O(len2) space)
-  const prevRow: number[] = new Array(len2 + 1);
-  for (let j = 0; j <= len2; j++) prevRow[j] = j;
-
-  for (let i = 1; i <= len1; i++) {
-    let currRow: number[] = new Array(len2 + 1);
-    currRow[0] = i;
-    for (let j = 1; j <= len2; j++) {
-      const cost = s1.charAt(i - 1) === s2.charAt(j - 1) ? 0 : 1;
-      currRow[j] = Math.min(
-        prevRow[j] + 1,      // deletion
-        currRow[j - 1] + 1,  // insertion
-        prevRow[j - 1] + cost // substitution
-      );
-    }
-    // copy currRow to prevRow for next iteration
-    for (let j = 0; j <= len2; j++) prevRow[j] = currRow[j];
-  }
-
-  const distance = prevRow[len2];
-  const maxLen = Math.max(len1, len2);
-  return Math.max(0, 1 - distance / maxLen);
-}
-
 function SelectedBadges({
   selected,
   options,
@@ -156,7 +116,6 @@ function MultiSelectCombobox({
     if ("addEventListener" in mq) {
       mq.addEventListener("change", listener);
     } else {
-      // Safari fallback
       // @ts-ignore
       mq.addListener(listener);
     }
@@ -207,9 +166,6 @@ function MultiSelectCombobox({
       </CommandList>
     </Command>
   );
-
-  // Use a bottom Sheet on small screens for better mobile usability,
-  // and a Popover on larger screens.
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={setOpen}>

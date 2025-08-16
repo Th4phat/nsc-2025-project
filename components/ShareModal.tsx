@@ -114,7 +114,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   documentId,
 }) => {
-  // --- STATE ---
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRecipients, setSelectedRecipients] = useState<
     RecipientWithPermissions[]
@@ -125,7 +125,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // --- CONVEX QUERIES ---
+  
   const sharedUsers = useQuery(
     api.document_sharing.getSharedUsersForDocument,
     isOpen ? { documentId } : "skip",
@@ -152,7 +152,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const shareDocument = useMutation(api.document_sharing.shareDocument);
   const unshareDocument = useMutation(api.document_sharing.unshareDocument);
 
-  // --- MEMOIZED VALUES ---
+  
   const userMap = useMemo(() => {
     const map = new Map<Id<"users">, DisplayUser>();
     sharedUsers?.forEach(su => map.set(su.user._id, su.user));
@@ -166,8 +166,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     [selectedRecipients],
   );
 
-  // --- EFFECTS ---
-  // Reset state when modal opens
+  
+  
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -177,7 +177,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   }, [isOpen]);
 
-  // Set initial shared users
+  
   useEffect(() => {
     if (sharedUsers && isOpen) {
       setSelectedRecipients(
@@ -189,7 +189,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   }, [sharedUsers, isOpen]);
 
-  // Add AI suggestions only once when they become available
+  
   useEffect(() => {
     if (
       isOpen &&
@@ -217,7 +217,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   }, [isOpen, aiSuggestedUsers, aiSuggestionsAdded, currentUserId, selectedRecipients]);
 
-  // --- HANDLERS ---
+  
   const toggleRecipient = useCallback((userId: Id<"users">) => {
     setSelectedRecipients(prev => {
       const exists = prev.find(r => r.userId === userId);
@@ -317,7 +317,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   };
 
-  // --- RENDER FUNCTIONS ---
+  
   const renderSearchResults = () => {
     if (searchTerm.length < 2) {
       return (

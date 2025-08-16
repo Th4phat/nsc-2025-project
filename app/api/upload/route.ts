@@ -56,10 +56,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Request an upload URL from Convex
+
     const uploadUrl = await fetchMutation(api.document.generateUploadUrl, {}, { token });
 
-    // 2. Upload the file to the Convex storage
+
     const response = await fetch(uploadUrl, {
       method: "POST",
       headers: { "Content-Type": file.type },
@@ -73,10 +73,10 @@ export async function POST(request: NextRequest) {
 
     const { storageId } = await response.json();
 
-let categories: string[] | undefined;
-let suggestedRecipients: Id<"users">[] | undefined;
+    let categories: string[] | undefined;
+    let suggestedRecipients: Id<"users">[] | undefined;
 
-    // 3. Create the document record in Convex with initial empty values
+
     const documentId = await fetchMutation(
       api.document_crud.createDocument,
       {
@@ -85,11 +85,11 @@ let suggestedRecipients: Id<"users">[] | undefined;
         mimeType: file.type,
         fileSize: file.size,
         classified: classified,
-        // If the document is classified we consider it already processed.
-        // Otherwise set status to "processing" until async work updates it.
+
+
         status: classified ? "completed" : "processing",
-        categories: [], // Initialize with empty array
-        aiSuggestedRecipients: [], // Initialize with empty array
+        categories: [],
+        aiSuggestedRecipients: [],
       },
       { token }
     );
@@ -101,52 +101,52 @@ let suggestedRecipients: Id<"users">[] | undefined;
       });
     }
 
-    // Return early for instant feedback
+
     const responseBody = JSON.stringify({ documentId });
     const headers = { "Content-Type": "application/json" };
     const initialResponse = new Response(responseBody, { status: 200, headers });
 
-// Asynchronously process and update the document
-if (!classified) {
-  (async () => {
-    let fileContent: FileContent | undefined; // Declare fileContent here
-    let processingStatus: "completed" | "failed" = "completed";
-    let processingError: string | undefined;
 
-    try {
-      fileContent = await getFileContent(arrayBuffer, file.type);
-      categories = await getDocCategories(name, fileContent);
-    } catch (processingError: any) {
-      console.error("Error processing document content or categories:", processingError);
-      processingStatus = "failed";
-      processingError = processingError.message;
-    }
+    if (!classified) {
+      (async () => {
+        let fileContent: FileContent | undefined;
+        let processingStatus: "completed" | "failed" = "completed";
+        let processingError: string | undefined;
 
-    if (fileContent && processingStatus === "completed") {
-      try {
-        const allUsers = await fetchQuery(api.users.getAllUsers, {}, { token });
-        suggestedRecipients = (await getAiShareSuggestions(
-          name,
-          fileContent,
-          userId,
-          allUsers,
-        )) as Id<"users">[];
-      } catch (suggestionError: any) {
-        console.error("Error generating AI share suggestions:", suggestionError);
-        processingStatus = "failed";
-        processingError = suggestionError.message;
-      }
-    }
+        try {
+          fileContent = await getFileContent(arrayBuffer, file.type);
+          categories = await getDocCategories(name, fileContent);
+        } catch (processingError: any) {
+          console.error("Error processing document content or categories:", processingError);
+          processingStatus = "failed";
+          processingError = processingError.message;
+        }
 
-        // Update the document with processing results
-        // Also extract and store searchableText for server-side search / future indexing
+        if (fileContent && processingStatus === "completed") {
+          try {
+            const allUsers = await fetchQuery(api.users.getAllUsers, {}, { token });
+            suggestedRecipients = (await getAiShareSuggestions(
+              name,
+              fileContent,
+              userId,
+              allUsers,
+            )) as Id<"users">[];
+          } catch (suggestionError: any) {
+            console.error("Error generating AI share suggestions:", suggestionError);
+            processingStatus = "failed";
+            processingError = suggestionError.message;
+          }
+        }
+
+
+
         let searchableText: string | undefined = undefined;
         if (fileContent) {
           if (fileContent.type === "image") {
             try {
-              // Run OCR only for images that the user uploaded and persist the result
+
               const ocrText = await ocrExtractFromImageBuffer(arrayBuffer, file.type);
-              console.log("ocr: ",ocrText)
+              console.log("ocr: ", ocrText)
               if (ocrText && ocrText.trim().length > 0) {
                 searchableText = ocrText.toLowerCase().trim();
               }
@@ -160,7 +160,7 @@ if (!classified) {
         }
 
         await fetchMutation(
-          api.document_crud.updateDocumentProcessingResults, // Now it's a public mutation
+          api.document_crud.updateDocumentProcessingResults,
           {
             documentId: documentId,
             categories: categories,

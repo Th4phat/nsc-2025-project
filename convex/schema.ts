@@ -2,16 +2,16 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 
-// The schema is normally optional, but Convex Auth
-// requires indexes defined on `authTables`.
-// The schema provides more precise TypeScript types.
+
+
+
 export default defineSchema({
   ...authTables,
 
 
   roles: defineTable({
     name: v.string(),
-    rank: v.number(), // Higher number means higher rank
+    rank: v.number(), 
     permissions: v.array(v.string()),
   })
     .index("by_name", ["name"])
@@ -24,13 +24,13 @@ export default defineSchema({
     profileId: v.optional(v.id("profiles")),
     departmentId: v.optional(v.id("departments")),
     controlledDepartments: v.optional(v.array(v.id("departments"))),
-    // NEW: Status for soft-deleting or archiving users.
+    
     status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
   })
     .index("by_email", ["email"])
     .index("by_name", ["name"])
     .index("by_roleId", ["roleId"])
-    .index("by_status", ["status"]) // NEW: Index for filtering by status
+    .index("by_status", ["status"]) 
     .index("by_departmentId", ["departmentId"])
     .searchIndex("by_search_query", { searchField: "email", filterFields: ["name"] }),
 
@@ -49,11 +49,11 @@ export default defineSchema({
   departments: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
-    // NEW: Status for soft-deleting or archiving departments.
+    
     status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
   })
     .index("by_name", ["name"])
-    .index("by_status", ["status"]), // NEW: Index for filtering by status
+    .index("by_status", ["status"]), 
 
   documents: defineTable({
     ownerId: v.id("users"),
@@ -74,7 +74,7 @@ export default defineSchema({
     aiProcessingError: v.optional(v.string()),
     classified: v.optional(v.boolean()),
     folderId: v.optional(v.id("folders")),
-    // New: extracted text used for naive search and future indexing
+    
     searchableText: v.optional(v.string()),
   })
     .index("by_ownerId", ["ownerId"])
@@ -94,17 +94,17 @@ export default defineSchema({
   folders: defineTable({
     name: v.string(),
     ownerId: v.id("users"),
-    // Optional field for nested folders. `null` indicates a root folder.
+    
     parentFolderId: v.optional(v.id("folders")),
   })
-    // Index to efficiently query folders by owner and parent
+    
     .index("by_owner_and_parent", ["ownerId", "parentFolderId"]),
 
   documentShares: defineTable({
     documentId: v.id("documents"),
     recipientId: v.id("users"),
     sharerId: v.id("users"),
-    // MODIFIED: Permissions are now an array, allowing for combined, granular access.
+    
     permissionGranted: v.array(
       v.union(
         v.literal("view"),
@@ -112,8 +112,8 @@ export default defineSchema({
         v.literal("resend")
       )
     ),
-    // MODIFIED: Removed `sharedAt`. You can use the built-in `_creationTime`
-    // field of this document to know when the share was created.
+    
+    
   })
     .index("by_documentId", ["documentId"])
     .index("by_recipientId", ["recipientId"])
@@ -127,16 +127,16 @@ export default defineSchema({
     .index("by_user_document", ["userId", "documentId"])
     .index("by_user_unread", ["userId", "isRead"]),
     
-  // --- NEW: Audit log for tracking important actions ---
+  
   auditLogs: defineTable({
-    actorId: v.id("users"), // The user who performed the action
-    action: v.string(), // e.g., "document.create", "user.updateRole"
-    targetTable: v.string(), // e.g., "documents", "users"
-    targetId: v.any(), // The ID of the document that was affected
-    details: v.optional(v.any()), // Optional object for extra context (e.g., before/after state)
+    actorId: v.id("users"), 
+    action: v.string(), 
+    targetTable: v.string(), 
+    targetId: v.any(), 
+    details: v.optional(v.any()), 
   })
-    .index("by_actorId", ["actorId"]) // Find all actions by a user
-    .index("by_target", ["targetTable", "targetId"]), // Find the history of a specific item
+    .index("by_actorId", ["actorId"]) 
+    .index("by_target", ["targetTable", "targetId"]), 
 
   distributedDocuments: defineTable({
     documentId: v.id("documents"),

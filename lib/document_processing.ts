@@ -4,15 +4,6 @@ import { Buffer } from "node:buffer";
 import { GoogleGenAI, Type } from "@google/genai";
 import { pdfToText, pdfToPages } from "pdf-ts";
 
-/**
- * lib/document_processing.ts
- *
- * Rewritten to be strongly typed and more maintainable.
- * Exports the same public functions as before but with clearer types and helpers.
- */
-
-/* ----------------------------- Types & Constants ---------------------------- */
-
 export type Department = {
   _id: string;
   name: string;
@@ -31,16 +22,16 @@ export type User = {
 export type FileContent =
   | { type: "text"; content: string }
   | {
-      type: "image";
-      content: string;
-      mimeType: SupportedMimeTypeImage;
-    }
+    type: "image";
+    content: string;
+    mimeType: SupportedMimeTypeImage;
+  }
   | {
-      type: "pdf";
-      textContent: string;
-      imageData: string;
-      mimeType: SupportedMimeType.PDF;
-    };
+    type: "pdf";
+    textContent: string;
+    imageData: string;
+    mimeType: SupportedMimeType.PDF;
+  };
 
 export const SUPPORTED_MIME_TYPES = {
   PDF: "application/pdf",
@@ -84,7 +75,7 @@ const DOCUMENT_CATEGORIES = [
 function normalizeToBuffer(input: ArrayBuffer | Uint8Array | Buffer): Buffer {
   if (Buffer.isBuffer(input)) return input;
   if (input instanceof Uint8Array) return Buffer.from(input);
-  // ArrayBuffer
+
   return Buffer.from(new Uint8Array(input));
 }
 
@@ -104,8 +95,8 @@ export function cleanOcrText(text: string): string {
   if (!text) return "";
   let t = String(text);
 
-  // If the OCR output is a JSON string with fields like natural_text or text,
-  // prefer those.
+
+
   try {
     const maybe = JSON.parse(t);
     if (maybe && typeof maybe === "object") {
@@ -116,40 +107,40 @@ export function cleanOcrText(text: string): string {
       }
     }
   } catch {
-    // not JSON — continue with the original text
+
   }
 
-  // Remove style/script blocks and all HTML tags
+
   t = t.replace(/<style[\s\S]*?<\/style>/gi, " ");
   t = t.replace(/<script[\s\S]*?<\/script>/gi, " ");
   t = t.replace(/<\/?[^>]+(>|$)/g, " ");
 
-  // Remove Markdown code fences and inline code
+
   t = t.replace(/```[\s\S]*?```/g, " ");
   t = t.replace(/`[^`]*`/g, " ");
 
-  // Remove images and convert markdown links [text](url) => text
+
   t = t.replace(/!\[.*?\]\(.*?\)/g, " ");
   t = t.replace(/\[([^\]]+)\]\((?:[^)]+)\)/g, "$1");
 
-  // Remove heading markers (#...) and formatting markers (**bold**, *italic*,
-  // __, _)
+
+
   t = t.replace(/^#{1,6}\s*/gm, " ");
   t = t.replace(/(\*\*|__)(.*?)\1/g, "$2");
   t = t.replace(/(\*|_)(.*?)\1/g, "$2");
 
-  // Remove table separators and pipe characters
+
   t = t.replace(/^\s*\|/gm, " ");
   t = t.replace(/\|/g, " ");
 
-  // Remove list markers (unordered and ordered)
+
   t = t.replace(/^[\s]*[-*+]\s+/gm, " ");
   t = t.replace(/^[\s]*\d+\.\s+/gm, " ");
 
-  // Remove long separator lines (----, ====, ___)
+
   t = t.replace(/[-=_]{3,}/g, " ");
 
-  // Decode common HTML entities used in OCR outputs
+
   t = t.replace(/&nbsp;|&|<|>|"|'/g, (s) => {
     switch (s) {
       case "&nbsp;":
@@ -169,14 +160,14 @@ export function cleanOcrText(text: string): string {
     }
   });
 
-  // Normalize newlines and whitespace
+
   t = t.replace(/\r\n?/g, "\n");
-  t = t.replace(/\n{3,}/g, "\n\n"); // keep up to one blank line
+  t = t.replace(/\n{3,}/g, "\n\n");
   t = t.replace(/[ \t]{2,}/g, " ");
   t = t.replace(/\n[ \t]+/g, "\n");
   t = t.replace(/[ \t]+\n/g, "\n");
 
-  // Trim leading/trailing whitespace and control characters
+
   t = t.trim();
 
   return sanitizeText(t);
@@ -240,8 +231,8 @@ function collectTextFromOcrJson(
     } else if (CONTAINER_KEYS.has(k)) {
       collectTextFromOcrJson(v, out);
     } else if (isPlainObject(v)) {
-      // Some providers nest text fields inside unknown keys within a block.
-      // Recurse shallowly to not miss nested "text" keys.
+
+
       collectTextFromOcrJson(v, out);
     } else if (Array.isArray(v)) {
       collectTextFromOcrJson(v, out);
@@ -267,12 +258,12 @@ function extractTextsFromTyphoonContent(
   };
 
   if (typeof content === "string") {
-    // Attempt to parse JSON; if fails, treat as plain text.
+
     const raw = content.trim();
     try {
       const parsed = JSON.parse(raw);
       const collected: string[] = [];
-      // If there is an explicit pages array, collect per-page and concatenate.
+
       if (isPlainObject(parsed) && Array.isArray((parsed as any).pages)) {
         for (const page of (parsed as any).pages) {
           const pageTexts: string[] = [];
@@ -287,7 +278,7 @@ function extractTextsFromTyphoonContent(
         return texts;
       }
     } catch {
-      // Not JSON; keep raw text
+
       if (raw) pushClean(raw);
       return texts;
     }
@@ -322,7 +313,7 @@ function extractTextsFromTyphoonContent(
  */
 async function extractTextFromPdf(buffer: Uint8Array): Promise<string> {
   try {
-    // OCR first (multi-page), if key available.
+
     try {
       const ocr = await ocrExtractFromBuffer(
         buffer,
@@ -334,10 +325,10 @@ async function extractTextFromPdf(buffer: Uint8Array): Promise<string> {
       }
     } catch (ocrErr) {
       console.warn("extractTextFromPdf: OCR-first failed", ocrErr);
-      // Fall back to native text extraction.
+
     }
 
-    // Fallback: per-page extraction.
+
     try {
       const pages = await pdfToPages(buffer);
       if (Array.isArray(pages) && pages.length > 0) {
@@ -353,7 +344,7 @@ async function extractTextFromPdf(buffer: Uint8Array): Promise<string> {
       console.warn("extractTextFromPdf: pdfToPages failed", pageErr);
     }
 
-    // Fallback: whole-document text extraction.
+
     try {
       const texts = await pdfToText(buffer);
       const cleanedTexts = sanitizeText(texts || "");
@@ -364,7 +355,7 @@ async function extractTextFromPdf(buffer: Uint8Array): Promise<string> {
       console.warn("extractTextFromPdf: pdfToText failed", txtErr);
     }
 
-    // Last resort: return empty.
+
     return "";
   } catch (err) {
     console.warn("extractTextFromPdf: failed to parse PDF", err);
@@ -427,7 +418,7 @@ async function ocrExtractFromBuffer(
 ): Promise<string> {
   const apiKey = process.env.OPENTYPHOON_API_KEY;
   if (!apiKey) {
-    // Caller can use fallback extraction; do not error here.
+
     console.info(
       "ocrExtractFromBuffer: OPENTYPHOON_API_KEY not set; skipping OCR"
     );
@@ -436,16 +427,16 @@ async function ocrExtractFromBuffer(
 
   try {
     const formData = new FormData();
-    // Normalize to a plain Uint8Array backed by a standard ArrayBuffer to avoid
-    // SharedArrayBuffer / ArrayBuffer compatibility issues in TS DOM typings.
+
+
     const rawUint8 =
       Buffer.isBuffer(buffer)
         ? new Uint8Array(buffer)
         : buffer instanceof Uint8Array
-        ? buffer
-        : new Uint8Array(buffer as ArrayBuffer);
-    // Copy into a fresh Uint8Array to guarantee the underlying buffer is an
-    // ArrayBuffer (not a SharedArrayBuffer), which satisfies Blob's types.
+          ? buffer
+          : new Uint8Array(buffer as ArrayBuffer);
+
+
     const uint8 = Uint8Array.from(rawUint8);
     const blob = new Blob([uint8], { type: mimeType });
 
@@ -504,8 +495,8 @@ async function ocrExtractFromBuffer(
       }
     };
 
-    // New: handle both per-page results and single aggregated result
-    // structures returned by Typhoon.
+
+
     if (Array.isArray(result?.results)) {
       for (const item of result.results) {
         if (item?.success && item?.message) {
@@ -534,7 +525,7 @@ async function ocrExtractFromBuffer(
         }
       }
     } else if (result?.message || result?.choices) {
-      // Sometimes the API may return a single message/choices object.
+
       const choices =
         result.message?.choices ?? result?.choices ?? [];
       if (Array.isArray(choices) && choices.length > 0) {
@@ -550,7 +541,7 @@ async function ocrExtractFromBuffer(
         consumeContent(content);
       }
     } else {
-      // Fallback: attempt to consume the whole result object.
+
       consumeContent(result);
     }
 
@@ -564,7 +555,7 @@ async function ocrExtractFromBuffer(
 /* ----------------------------- Content Processors -------------------------- */
 
 async function processPdf(buffer: Uint8Array): Promise<FileContent> {
-  // OCR-first inside extractTextFromPdf.
+
   const textContent = (await extractTextFromPdf(buffer)) || "";
   const finalText = sanitizeText(textContent || "");
   const imageData = convertToBase64(buffer);
@@ -640,13 +631,11 @@ function createCategoriesPrompt(
   let specificContent = `**เอกสารชื่อ:** ${documentName}`;
 
   if (fileContent.type === "text") {
-    specificContent += `\n**เนื้อหา:** ${
-      fileContent.content || "no text found"
-    }`;
+    specificContent += `\n**เนื้อหา:** ${fileContent.content || "no text found"
+      }`;
   } else if (fileContent.type === "pdf") {
-    specificContent += `\n**เนื้อหาข้อความที่สกัดได้:** ${
-      fileContent.textContent || "no text found"
-    }`;
+    specificContent += `\n**เนื้อหาข้อความที่สกัดได้:** ${fileContent.textContent || "no text found"
+      }`;
   } else {
     specificContent += `\n**หมายเหตุ:** Binary content (image) — no extractable text`;
   }
@@ -663,10 +652,9 @@ function createUserListString(users: User[]): string {
       parts.push(`Email: ${user.email}`);
       if (user.department)
         parts.push(
-          `Department: ${user.department.name}${
-            user.department.description
-              ? ` (${user.department.description})`
-              : ""
+          `Department: ${user.department.name}${user.department.description
+            ? ` (${user.department.description})`
+            : ""
           }`
         );
       if (user.roleName) parts.push(`Role: ${user.roleName}`);
@@ -688,14 +676,12 @@ Do not include the document owner (User ID: ${ownerId}). If content is insuffici
   let contentSection = "";
 
   if (fileContent.type === "text") {
-    contentSection = `\n\nDocument Content:\n${
-      fileContent.content || "no data found"
-    }`;
+    contentSection = `\n\nDocument Content:\n${fileContent.content || "no data found"
+      }`;
   } else if (fileContent.type === "pdf") {
-    contentSection = `\n\nDocument Content (extracted text):\n${
-      fileContent.textContent ||
+    contentSection = `\n\nDocument Content (extracted text):\n${fileContent.textContent ||
       "no text found, this is probably scanned pdf"
-    }`;
+      }`;
   } else {
     contentSection = `\n\nDocument is an image (binary). No extracted text available.`;
   }
@@ -790,8 +776,8 @@ export async function getDocCategories(
     | { inlineData: { mimeType: string; data: string } }
   )[] = [];
 
-  // Only attach inline binary for images. For PDFs, pass the extracted text
-  // via the prompt.
+
+
   if (fileContent.type === "image") {
     contents.push({
       inlineData: {
@@ -815,14 +801,14 @@ export async function getDocCategories(
     },
   });
 
-  // result.text is expected to be JSON due to responseSchema but guard
-  // defensively.
+
+
   try {
     return parseStringArrayStrict(result.text);
   } catch (err) {
     console.error("getDocCategories: failed to parse AI response", err);
-    // As a fallback, return empty array rather than throwing to keep callers
-    // robust.
+
+
     return [];
   }
 }
@@ -854,7 +840,7 @@ export async function getAiShareSuggestions(
     | { inlineData: { mimeType: string; data: string } }
   )[] = [];
 
-  // Only attach inline binary for images. For PDFs, use extracted text.
+
   if (fileContent.type === "image") {
     contents.push({
       inlineData: {
@@ -888,7 +874,7 @@ export async function getAiShareSuggestions(
     return [];
   }
 
-  // Only accept string IDs, exclude owner and unknown ids
+
   const validUserIds = new Set(allUsers.map((u) => u._id));
   return extracted.filter(
     (id) =>
@@ -916,7 +902,7 @@ export function extractSearchableText(
         .toLowerCase()
         .trim();
     }
-    // image: currently no text unless OCR is run separately
+
     return "";
   } catch (err) {
     console.error("extractSearchableText: error extracting text", err);

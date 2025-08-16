@@ -42,7 +42,7 @@ export const listOwnedDocuments = query({
         return await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
-            .filter((q) => q.eq(q.field("status"), "completed")) // Only return active documents
+            .filter((q) => q.eq(q.field("status"), "completed")) 
             .collect();
     },
 });
@@ -66,7 +66,7 @@ export const getUniqueAiCategories = query({
             throw new Error("Authenticated user not found.");
         }
 
-        // Only consider documents owned by the current user (exclude shared documents)
+        
         const ownedDocumentsWithCategories = await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
@@ -149,10 +149,10 @@ export const generateDownloadUrl = query({
             return null;
         }
 
-        // Check if the user is the owner
+        
         const isOwner = document.ownerId === userId;
 
-        // Check if the document is shared with the user and has download permissions
+        
         const share = await ctx.db
             .query("documentShares")
             .withIndex("by_document_recipient", (q) =>
@@ -163,7 +163,7 @@ export const generateDownloadUrl = query({
         const hasDownloadPermission = share?.permissionGranted.includes("download");
 
         if (!isOwner && !hasDownloadPermission) {
-            // throw new Error("Not authorized to download this document.");
+            
         }
 
         return await ctx.storage.getUrl(document.fileId);
@@ -180,8 +180,8 @@ export const updateAiSuggestions = internalMutation({
         await ctx.db.patch(args.documentId, {
             aiSuggestedRecipients: args.suggestedUserIds,
         });
-        // Optional: Add audit log for this update
-        // await ctx.db.insert("auditLogs", { ... });
+        
+        
         return null;
     },
 });
@@ -219,14 +219,14 @@ export const getAllDocuments = query({
             return [];
         }
 
-        // Get owned documents
+        
         const ownedDocuments = await ctx.db
             .query("documents")
             .withIndex("by_ownerId", (q) => q.eq("ownerId", userId))
-            .filter((q) => q.or(q.eq(q.field("status"), "completed"), q.eq(q.field("status"), "processing"))) // Only return active documents
+            .filter((q) => q.or(q.eq(q.field("status"), "completed"), q.eq(q.field("status"), "processing"))) 
             .collect();
 
-        // Get shared documents
+        
         const sharedDocumentShares = await ctx.db
             .query("documentShares")
             .withIndex("by_recipientId", (q) => q.eq("recipientId", userId))
@@ -235,12 +235,12 @@ export const getAllDocuments = query({
         const sharedDocuments = [];
         for (const share of sharedDocumentShares) {
             const document = await ctx.db.get(share.documentId);
-            if (document && (document.status === "completed" || document.status === "processing")) { // Only return active documents
+            if (document && (document.status === "completed" || document.status === "processing")) { 
                 sharedDocuments.push(document);
             }
         }
 
-        // Combine and remove duplicates (though there shouldn't be duplicates if a user can't share with themselves)
+        
         const allDocumentsMap = new Map<Id<"documents">, Doc<"documents">>();
         for (const doc of ownedDocuments) {
             allDocumentsMap.set(doc._id, doc);
@@ -435,10 +435,10 @@ export const getDocumentAndUrl = query({
             return null;
         }
 
-        // Check if the user is the owner
+        
         const isOwner = document.ownerId === userId;
 
-        // Check if the document is shared with the user and has view permissions
+        
         const share = await ctx.db
             .query("documentShares")
             .withIndex("by_document_recipient", (q) =>
@@ -449,8 +449,8 @@ export const getDocumentAndUrl = query({
         const hasViewPermission = share?.permissionGranted.includes("view");
 
         if (!isOwner && !hasViewPermission) {
-            // If not owner and no view permission, return null or throw an error
-            // For now, returning null to prevent unauthorized access
+            
+            
             return null;
         }
 

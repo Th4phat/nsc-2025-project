@@ -20,9 +20,11 @@ import {
   HardDrive,
   FileType,
   Tag,
+  Edit,
   Eye
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
+import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
@@ -81,17 +83,23 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
   const [isMoveToFolderOpen, setIsMoveToFolderOpen] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<Id<"folders"> | null>(null);
   const [previewDocumentId, setPreviewDocumentId] = useState<Id<"documents"> | undefined>(undefined);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [newName, setNewName] = useState<string>("");
 
   const folders = useQuery(api.folders.getFolders, {});
 
-  // Reset previewDocumentId when the selected document changes
   React.useEffect(() => {
     setPreviewDocumentId(undefined);
+  }, [document]);
+
+  React.useEffect(() => {
+    setNewName(document?.name ?? "");
   }, [document]);
   const moveDocument = useMutation(api.document.moveDocument);
   const softDeleteDocument = useMutation(api.document_crud.softDeleteDocument);
   const restoreDocument = useMutation(api.document_crud.restoreDocument);
   const permanentlyDeleteDocument = useMutation(api.document_crud.permanentlyDeleteDocument);
+  const renameDocument = useMutation(api.document_crud.updateDocumentName);
 
   const userPermissions = useQuery(api.document_sharing.getUserDocumentPermissions, document ? { documentId: document._id } : "skip");
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -137,6 +145,19 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
     }
   };
 
+  const handleRename = async () => {
+    if (!document) return;
+    const trimmed = newName.trim();
+    if (trimmed.length === 0) return;
+    try {
+      await renameDocument({ documentId: document._id, newName: trimmed });
+      setSelectedDocument({ ...document, name: trimmed });
+      setIsRenameOpen(false);
+    } catch (error) {
+      console.error("Failed to rename document:", error);
+    }
+  };
+
   if (!document) {
     return (
       <aside className="w-full lg:w-80 xl:w-96 bg-white border-l border-slate-200 dark:bg-slate-900 dark:border-slate-800 flex-shrink-0">
@@ -150,9 +171,10 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
     );
   }
 
-  const canDownload = userPermissions?.includes("download");
-  const canShare = userPermissions?.includes("resend");
-  const isOwner = currentUser && document.ownerId === currentUser.id;
+  const actionsReady = userPermissions !== undefined && currentUser !== undefined;
+  const canDownload = actionsReady && userPermissions.includes("download");
+  const canShare = actionsReady && userPermissions.includes("resend");
+  const isOwner = actionsReady && currentUser && document.ownerId === currentUser.id;
 
   return (
     <aside className="w-full lg:w-80 xl:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col">
@@ -161,61 +183,82 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
           {document.name}
         </h3>
         {document.status !== "trashed" ? (
-          <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
-            {canDownload && (
-              <DownloadButtonSection document={document} />
-            )}
-            {canShare && (
+          actionsReady ? (
+            <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+              {canDownload && (
+                <DownloadButtonSection document={document} />
+              )}
+              {canShare && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2 h-9"
+                  title="แชร์"
+                  onClick={() => {
+                    setIsShareModalOpen(true);
+                    setPreviewDocumentId(undefined);
+                  }}
+                >
+                  <Share className="h-4 w-4" />
+                  <span className="">แชร์</span>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start gap-2 h-9"
-                title="แชร์"
-                onClick={() => {
-                  setIsShareModalOpen(true);
-                  setPreviewDocumentId(undefined);
-                }}
+                title="ดูตัวอย่าง"
+                onClick={() => setPreviewDocumentId(document._id)}
               >
-                <Share className="h-4 w-4" />
-                <span className="">แชร์</span>
+                <Eye className="h-4 w-4" />
+                <span className="">ดูตัวอย่าง</span>
               </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 h-9"
-              title="ดูตัวอย่าง"
-              onClick={() => setPreviewDocumentId(document._id)}
-            >
-              <Eye className="h-4 w-4" />
-              <span className="">ดูตัวอย่าง</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 h-9"
-              title="ย้ายไปโฟลเดอร์"
-              onClick={() => {
-                  setIsMoveToFolderOpen(true);
-                  setPreviewDocumentId(undefined);
-                }}
-            >
-              <FolderOpen className="h-4 w-4" />
-              <span className="">ย้าย</span>
-            </Button>
-            {isOwner && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start gap-2 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20"
-                title="ย้ายไปถังขยะ"
-                onClick={handleDelete}
+                className="w-full justify-start gap-2 h-9"
+                title="ย้ายไปโฟลเดอร์"
+                onClick={() => {
+                  setIsMoveToFolderOpen(true);
+                  setPreviewDocumentId(undefined);
+                }}
               >
-                <Trash2 className="h-4 w-4" />
-                <span className="">ย้ายไปถังขยะ</span>
+                <FolderOpen className="h-4 w-4" />
+                <span className="">ย้าย</span>
               </Button>
-            )}
-          </div>
+              {isOwner && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2 h-9"
+                  title="เปลี่ยนชื่อ"
+                  onClick={() => {
+                    setIsRenameOpen(true);
+                    setPreviewDocumentId(undefined);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                  <span className="">เปลี่ยนชื่อ</span>
+                </Button>
+              )}
+              {isOwner && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20"
+                  title="ย้ายไปถังขยะ"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="">ย้ายไปถังขยะ</span>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="h-36 flex items-center justify-center text-sm text-slate-500">
+              กำลังโหลดตัวเลือก...
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
             <Button
@@ -292,18 +335,18 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             </div>
             <Badge variant="secondary" className="ml-6 text-xs">
               {
-  document.mimeType === 'application/pdf'
-    ? 'PDF'
-    : document.mimeType ===
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ? 'Word Document'
-    : document.mimeType ===
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ? 'Excel Spreadsheet'
-    : document.mimeType.startsWith('image/')
-    ? 'Image'
-    : 'Unknown'
-}
+                document.mimeType === 'application/pdf'
+                  ? 'PDF'
+                  : document.mimeType ===
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    ? 'Word Document'
+                    : document.mimeType ===
+                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                      ? 'Excel Spreadsheet'
+                      : document.mimeType.startsWith('image/')
+                        ? 'Image'
+                        : 'Unknown'
+              }
             </Badge>
           </div>
 
@@ -340,21 +383,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
             </>
           )}
         </div>
-
-        {/* <div className="border-t border-slate-200 dark:border-slate-800 p-4 lg:p-6">
-          <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            แสดงตัวอย่าง
-          </h4>
-          <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg h-48 lg:h-64 flex items-center justify-center">
-            <div className="text-center text-slate-400 dark:text-slate-500">
-              {generateDownloadUrl && (
-                <iframe src={generateDownloadUrl} width="100%" height="100%"/>
-                
-              )}
-            </div>
-          </div>
-        </div> */}
       </ScrollArea>
 
       <ShareModal
@@ -362,31 +390,48 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ document, setSelectedDocume
         onClose={() => setIsShareModalOpen(false)}
         documentId={document._id}
       />
-     <Dialog open={isMoveToFolderOpen} onOpenChange={setIsMoveToFolderOpen}>
-       <DialogContent>
-         <DialogHeader>
-           <DialogTitle>ย้ายไปยังโฟล์เดอร์</DialogTitle>
-         </DialogHeader>
-         <div className="grid gap-4 py-4">
-           <Label>โปรดเลือกโฟล์เดอร์</Label>
-           <RadioGroup onValueChange={(value) => setSelectedFolderId(value as Id<"folders">)}>
-             {folders?.map(folder => (
-               <div key={folder._id} className="flex items-center space-x-2 p-2">
-                 <RadioGroupItem value={folder._id} id={folder._id} />
-                 <Label htmlFor={folder._id}>{folder.name}</Label>
-               </div>
-             ))}
-           </RadioGroup>
-         </div>
-         <DialogFooter>
-           <DialogClose asChild>
-             <Button variant="outline">ยกเลิก</Button>
-           </DialogClose>
-           <Button onClick={handleMoveToFolder} disabled={!selectedFolderId}>ยืนยัน</Button>
-         </DialogFooter>
-       </DialogContent>
-     </Dialog>
-     <DocModal docId={previewDocumentId} onClose={() => setPreviewDocumentId(undefined)} />
+      <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>เปลี่ยนชื่อเอกสาร</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Label>ชื่อใหม่</Label>
+            <Input value={newName} onChange={(e) => setNewName((e.target as HTMLInputElement).value)} />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">ยกเลิก</Button>
+            </DialogClose>
+            <Button onClick={handleRename} disabled={!newName || newName.trim() === ""}>ยืนยัน</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isMoveToFolderOpen} onOpenChange={setIsMoveToFolderOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ย้ายไปยังโฟล์เดอร์</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Label>โปรดเลือกโฟล์เดอร์</Label>
+            <RadioGroup onValueChange={(value) => setSelectedFolderId(value as Id<"folders">)}>
+              {folders?.map(folder => (
+                <div key={folder._id} className="flex items-center space-x-2 p-2">
+                  <RadioGroupItem value={folder._id} id={folder._id} />
+                  <Label htmlFor={folder._id}>{folder.name}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">ยกเลิก</Button>
+            </DialogClose>
+            <Button onClick={handleMoveToFolder} disabled={!selectedFolderId}>ยืนยัน</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <DocModal docId={previewDocumentId} onClose={() => setPreviewDocumentId(undefined)} />
     </aside>
   );
 };

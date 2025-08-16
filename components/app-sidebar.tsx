@@ -26,7 +26,7 @@ import {
 import { Button } from "./ui/button";
 import { useMutation, useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel"; // Import Id
+import { Id } from "@/convex/_generated/dataModel"; 
 import { useState, useEffect } from "react";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
@@ -48,11 +48,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const user = useQuery(api.users.getCurrentUser);
   const permissions = useQuery(api.users.getPermissionsByUserId);
-  const aiCategories = useQuery(api.document.getUniqueAiCategories); // Fetch unique AI categories
-  const folders = useQuery(api.folders.getFolders, {}); // Fetch folders
-  const documents = useQuery(api.document.getDocumentsInAllFolders, {}); // Fetch all documents in folders
-  const createFolder = useMutation(api.folders.createFolder); // Mutation to create folders
-  const renameFolder = useMutation(api.folders.renameFolder); // Mutation to rename folders
+  const aiCategories = useQuery(api.document.getUniqueAiCategories); 
+  const folders = useQuery(api.folders.getFolders, {}); 
+  const documents = useQuery(api.document.getDocumentsInAllFolders, {}); 
+  const createFolder = useMutation(api.folders.createFolder); 
+  const renameFolder = useMutation(api.folders.renameFolder); 
 
   const data = {
     user: {
@@ -114,12 +114,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   };
 
-  // Organize documents under folders
+  
   const folderItems = folders?.map(folder => {
     const nestedDocuments = documents?.filter(doc => doc.folderId === folder._id).map(doc => ({
       title: doc.name,
       url: `/dashboard?documentId=${doc._id}`,
-      documentId: doc._id, // Add documentId
+      documentId: doc._id, 
     })) || [];
     return {
       title: folder.name,
@@ -130,15 +130,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }) || [];
 
 
-  // Map AI categories to the NavMain items format
+  
   const aiCategoryNavItems = aiCategories?.map((categoryData) => ({
     title: categoryData.category,
-    url: `/dashboard?category=${encodeURIComponent(categoryData.category)}`, // Link to dashboard with category param
-    icon: Folder, // You can choose a relevant icon or derive it
+    url: `/dashboard?category=${encodeURIComponent(categoryData.category)}`, 
+    icon: Folder, 
     items: categoryData.items.map((doc) => ({
       title: doc.name,
-      url: `/dashboard?documentId=${doc._id}`, // Link to document details
-      documentId: doc._id, // Add documentId
+      url: `/dashboard?documentId=${doc._id}`, 
+      documentId: doc._id, 
     })),
   })) || [];
 
@@ -254,7 +254,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           user={{
             name: user?.name ?? data.user.name,
             email: user?.email ?? data.user.email,
-            avatar: data.user.avatar, // Always use default avatar since Convex user doesn't have one
+            avatar: data.user.avatar, 
           }}
         />
       </SidebarFooter>

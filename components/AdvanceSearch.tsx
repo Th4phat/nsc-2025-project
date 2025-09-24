@@ -227,13 +227,10 @@ function MultiSelectCombobox({
 }
 
 export function AdvancedSearchBar({
-  // basic search
   searchTerm,
   setSearchTerm,
-  // collapse
   isAdvancedOpen,
   setIsAdvancedOpen,
-  // filters
   availableAuthors,
   availableCategories,
   authorFilter,
@@ -250,7 +247,6 @@ export function AdvancedSearchBar({
   matchMode,
   setMatchMode,
   onClear,
-  // labels
   labels,
 }: {
   searchTerm: string;

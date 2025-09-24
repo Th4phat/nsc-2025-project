@@ -63,46 +63,90 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Calculate similarity between two strings as a value between 0 and 1.
- * Uses a normalized Levenshtein distance: 1 - (distance / maxLen).
- * Kept local here so the UI can perform "loosely" matching client-side.
- */
 function calculateTextSimilarity(a: string, b: string): number {
-  const s1 = (a ?? "").toString();
-  const s2 = (b ?? "").toString();
-  if (s1 === s2) return 1;
-  const len1 = s1.length;
-  const len2 = s2.length;
+  if (a === b) return 1;
+
+  const len1 = a.length;
+  const len2 = b.length;
   if (len1 === 0 || len2 === 0) return 0;
 
-  const prevRow: number[] = new Array(len2 + 1);
-  for (let j = 0; j <= len2; j++) prevRow[j] = j;
+  const maxLen = len1 > len2 ? len1 : len2;
 
-  for (let i = 1; i <= len1; i++) {
-    const currRow: number[] = new Array(len2 + 1);
-    currRow[0] = i;
-    for (let j = 1; j <= len2; j++) {
-      const cost = s1.charAt(i - 1) === s2.charAt(j - 1) ? 0 : 1;
-      currRow[j] = Math.min(
-        prevRow[j] + 1,
-        currRow[j - 1] + 1,
-        prevRow[j - 1] + cost
-      );
-    }
-    for (let j = 0; j <= len2; j++) prevRow[j] = currRow[j];
+  // Trim common prefix
+  let start = 0;
+  while (
+    start < len1 &&
+    start < len2 &&
+    a.charCodeAt(start) === b.charCodeAt(start)
+  ) {
+    start++;
   }
 
-  const distance = prevRow[len2];
-  const maxLen = Math.max(len1, len2);
+  // Trim common suffix
+  let end1 = len1 - 1;
+  let end2 = len2 - 1;
+  while (
+    end1 >= start &&
+    end2 >= start &&
+    a.charCodeAt(end1) === b.charCodeAt(end2)
+  ) {
+    end1--;
+    end2--;
+  }
+
+  let n1 = end1 - start + 1;
+  let n2 = end2 - start + 1;
+
+  if (n1 <= 0) {
+    const distance = n2 <= 0 ? 0 : n2;
+    return Math.max(0, 1 - distance / maxLen);
+  }
+  if (n2 <= 0) {
+    const distance = n1;
+    return Math.max(0, 1 - distance / maxLen);
+  }
+
+  // Use the shorter substring for the DP width
+  let sShort = a;
+  let sLong = b;
+  let shortStart = start;
+  let longStart = start;
+  let m = n1;
+  let n = n2;
+
+  if (n1 > n2) {
+    sShort = b;
+    sLong = a;
+    m = n2;
+    n = n1;
+  }
+
+  const dp = new Uint32Array(m + 1);
+  for (let i = 0; i <= m; i++) dp[i] = i;
+
+  for (let i = 1; i <= n; i++) {
+    const longCode = sLong.charCodeAt(longStart + i - 1);
+    let prev = dp[0]; // dp[i - 1][0]
+    dp[0] = i; // dp[i][0]
+
+    for (let j = 1; j <= m; j++) {
+      const temp = dp[j]; // dp[i - 1][j]
+      const cost =
+        longCode === sShort.charCodeAt(shortStart + j - 1) ? 0 : 1;
+
+      // dp[j] is dp[i - 1][j] at this point
+      const del = dp[j] + 1; // delete from long side
+      const ins = dp[j - 1] + 1; // insert into long side
+      const sub = prev + cost; // substitute
+
+      dp[j] = del < ins ? (del < sub ? del : sub) : (ins < sub ? ins : sub);
+      prev = temp; // move diagonal
+    }
+  }
+
+  const distance = dp[m];
   return Math.max(0, 1 - distance / maxLen);
 }
-
-
-
-
-
-
 
 function HighlightedText({
   text,

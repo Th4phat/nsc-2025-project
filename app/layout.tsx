@@ -16,23 +16,6 @@ export const metadata: Metadata = {
   icons: {
     icon: "/convex.svg",  
   },
-  // Add font preloads
-  // link: [
-  //   {
-  //     rel: "preload",
-  //     href: geistSans.variable,
-  //     as: "font",
-  //     type: "font/woff2",
-  //     crossOrigin: "anonymous",
-  //   },
-  //   {
-  //     rel: "preload",
-  //     href: geistMono.url,
-  //     as: "font",
-  //     type: "font/woff2",
-  //     crossOrigin: "anonymous",
-  //   },
-  // ],
 };
 
 export default function RootLayout({

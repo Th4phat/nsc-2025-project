@@ -3,7 +3,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Theme variable mapping (no changes needed here) */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -44,82 +43,81 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Light Theme - Blue */
 :root {
-  --radius: 0.5rem; /* Slightly sharper corners */
-  --background: oklch(0.99 0.005 255); /* Almost white, slight blue tint */
-  --foreground: oklch(0.15 0.015 255); /* Dark blue-gray text */
-  --card: oklch(1 0 0); /* White card background */
-  --card-foreground: oklch(0.15 0.015 255); /* Dark blue-gray text */
-  --popover: oklch(1 0 0); /* White popover background */
-  --popover-foreground: oklch(0.15 0.015 255); /* Dark blue-gray text */
-  --primary: oklch(0.5 0.16 255); /* Primary Blue */
-  --primary-foreground: oklch(0.98 0.01 255); /* Light text on primary */
-  --secondary: oklch(0.95 0.02 255); /* Light blue-gray secondary bg */
-  --secondary-foreground: oklch(0.3 0.05 255); /* Darker blue text on secondary */
-  --muted: oklch(0.95 0.02 255); /* Light blue-gray muted bg */
-  --muted-foreground: oklch(0.5 0.02 255); /* Medium blue-gray muted text */
-  --accent: oklch(0.92 0.04 255); /* Lighter blue accent bg */
-  --accent-foreground: oklch(0.2 0.06 255); /* Dark blue text on accent */
-  --destructive: oklch(0.6 0.2 25); /* Destructive Red/Orange */
-  --border: oklch(0.9 0.02 255); /* Light blue-gray border */
-  --input: oklch(0.9 0.02 255); /* Light blue-gray input bg */
-  --ring: oklch(0.55 0.18 255); /* Brighter blue for focus ring */
-  /* Chart colors - variations of blue and gray */
-  --chart-1: oklch(0.5 0.16 255); /* Primary Blue */
-  --chart-2: oklch(0.7 0.1 200); /* Teal */
-  --chart-3: oklch(0.6 0.05 255); /* Desaturated Blue */
-  --chart-4: oklch(0.8 0.08 255); /* Lighter Blue */
-  --chart-5: oklch(0.4 0.1 255); /* Darker Blue */
-  /* Sidebar */
-  --sidebar: oklch(0.97 0.01 255); /* Slightly off-white blue tint */
+  --radius: 0.5rem; 
+  --background: oklch(0.99 0.005 255); 
+  --foreground: oklch(0.15 0.015 255); 
+  --card: oklch(1 0 0); 
+  --card-foreground: oklch(0.15 0.015 255); 
+  --popover: oklch(1 0 0); 
+  --popover-foreground: oklch(0.15 0.015 255); 
+  --primary: oklch(0.5 0.16 255); 
+  --primary-foreground: oklch(0.98 0.01 255); 
+  --secondary: oklch(0.95 0.02 255); 
+  --secondary-foreground: oklch(0.3 0.05 255); 
+  --muted: oklch(0.95 0.02 255); 
+  --muted-foreground: oklch(0.5 0.02 255); 
+  --accent: oklch(0.92 0.04 255); 
+  --accent-foreground: oklch(0.2 0.06 255); 
+  --destructive: oklch(0.6 0.2 25); 
+  --border: oklch(0.9 0.02 255); 
+  --input: oklch(0.9 0.02 255); 
+  --ring: oklch(0.55 0.18 255); 
+  
+  --chart-1: oklch(0.5 0.16 255); 
+  --chart-2: oklch(0.7 0.1 200); 
+  --chart-3: oklch(0.6 0.05 255); 
+  --chart-4: oklch(0.8 0.08 255); 
+  --chart-5: oklch(0.4 0.1 255); 
+  
+  --sidebar: oklch(0.97 0.01 255); 
   --sidebar-foreground: oklch(0.15 0.015 255);
   --sidebar-primary: oklch(0.5 0.16 255);
   --sidebar-primary-foreground: oklch(0.98 0.01 255);
-  --sidebar-accent: oklch(0.9 0.03 255); /* Hover/active background */
+  --sidebar-accent: oklch(0.9 0.03 255); 
   --sidebar-accent-foreground: oklch(0.2 0.06 255);
   --sidebar-border: oklch(0.9 0.02 255);
   --sidebar-ring: oklch(0.55 0.18 255);
 }
 
-/* Dark Theme - Blue */
+
 .dark {
-  --background: oklch(0.15 0.02 255); /* Dark blue-gray background */
-  --foreground: oklch(0.98 0.01 255); /* Very light blue-tinted text */
-  --card: oklch(0.2 0.03 255); /* Slightly lighter dark blue card */
+  --background: oklch(0.15 0.02 255); 
+  --foreground: oklch(0.98 0.01 255); 
+  --card: oklch(0.2 0.03 255); 
   --card-foreground: oklch(0.98 0.01 255);
   --popover: oklch(0.2 0.03 255);
   --popover-foreground: oklch(0.98 0.01 255);
-  --primary: oklch(0.65 0.18 255); /* Brighter blue for dark mode */
-  --primary-foreground: oklch(0.1 0.02 255); /* Dark text on primary */
-  --secondary: oklch(0.25 0.04 255); /* Darker blue secondary bg */
-  --secondary-foreground: oklch(0.95 0.01 255); /* Light text on secondary */
+  --primary: oklch(0.65 0.18 255); 
+  --primary-foreground: oklch(0.1 0.02 255); 
+  --secondary: oklch(0.25 0.04 255); 
+  --secondary-foreground: oklch(0.95 0.01 255); 
   --muted: oklch(0.25 0.04 255);
-  --muted-foreground: oklch(0.6 0.02 255); /* Lighter gray-blue muted text */
-  --accent: oklch(0.3 0.05 255); /* Darker blue accent bg */
-  --accent-foreground: oklch(0.98 0.01 255); /* Light text on accent */
-  --destructive: oklch(0.7 0.18 25); /* Lighter destructive Red/Orange */
-  --border: oklch(0.3 0.04 255); /* Dark blue border */
-  --input: oklch(0.3 0.04 255); /* Dark blue input bg */
-  --ring: oklch(0.65 0.18 255); /* Primary blue for focus ring */
-  /* Chart colors - adjusted for dark mode */
-  --chart-1: oklch(0.65 0.18 255); /* Primary Blue Dark */
-  --chart-2: oklch(0.75 0.12 200); /* Lighter Teal */
-  --chart-3: oklch(0.7 0.06 255); /* Lighter Desaturated Blue */
-  --chart-4: oklch(0.85 0.1 255); /* Very Light Blue */
-  --chart-5: oklch(0.55 0.12 255); /* Mid Blue */
-  /* Sidebar */
-  --sidebar: oklch(0.2 0.03 255); /* Same as card */
+  --muted-foreground: oklch(0.6 0.02 255); 
+  --accent: oklch(0.3 0.05 255); 
+  --accent-foreground: oklch(0.98 0.01 255); 
+  --destructive: oklch(0.7 0.18 25); 
+  --border: oklch(0.3 0.04 255); 
+  --input: oklch(0.3 0.04 255); 
+  --ring: oklch(0.65 0.18 255); 
+  
+  --chart-1: oklch(0.65 0.18 255); 
+  --chart-2: oklch(0.75 0.12 200); 
+  --chart-3: oklch(0.7 0.06 255); 
+  --chart-4: oklch(0.85 0.1 255); 
+  --chart-5: oklch(0.55 0.12 255); 
+  
+  --sidebar: oklch(0.2 0.03 255); 
   --sidebar-foreground: oklch(0.98 0.01 255);
   --sidebar-primary: oklch(0.65 0.18 255);
   --sidebar-primary-foreground: oklch(0.1 0.02 255);
-  --sidebar-accent: oklch(0.3 0.05 255); /* Hover/active background */
+  --sidebar-accent: oklch(0.3 0.05 255); 
   --sidebar-accent-foreground: oklch(0.98 0.01 255);
   --sidebar-border: oklch(0.3 0.04 255);
   --sidebar-ring: oklch(0.65 0.18 255);
 }
 
-/* Base layer styles (no changes needed here) */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

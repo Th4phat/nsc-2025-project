@@ -43,7 +43,7 @@ export const SUPPORTED_MIME_TYPES = {
   PNG: "image/png",
 } as const;
 
-/** Narrowed union of string literal mime types for better type safety. */
+
 export type SupportedMimeTypeImage =
   | (typeof SUPPORTED_MIME_TYPES)["JPEG"]
   | (typeof SUPPORTED_MIME_TYPES)["PNG"];
@@ -69,9 +69,9 @@ const DOCUMENT_CATEGORIES = [
   "เอกสารทางการตลาด (Marketing Material)",
 ] as const;
 
-/* ----------------------------- Helper Utilities ---------------------------- */
 
-/** Normalizes various buffer-like inputs to a Node Buffer. */
+
+
 function normalizeToBuffer(input: ArrayBuffer | Uint8Array | Buffer): Buffer {
   if (Buffer.isBuffer(input)) return input;
   if (input instanceof Uint8Array) return Buffer.from(input);
@@ -79,7 +79,7 @@ function normalizeToBuffer(input: ArrayBuffer | Uint8Array | Buffer): Buffer {
   return Buffer.from(new Uint8Array(input));
 }
 
-/** Remove control characters and normalize Unicode. */
+
 export function sanitizeText(text: string): string {
   return text.replace(/[\x00-\x1F\x7F]/g, "").normalize("NFC");
 }
@@ -173,7 +173,7 @@ export function cleanOcrText(text: string): string {
   return sanitizeText(t);
 }
 
-/* -------------------------- Typhoon OCR JSON Parser ------------------------ */
+
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -304,7 +304,7 @@ function extractTextsFromTyphoonContent(
   return texts;
 }
 
-/* ----------------------------- File Extractors ------------------------------ */
+
 
 /**
  * Extract plain text from PDF with OCR-first strategy:
@@ -363,7 +363,7 @@ async function extractTextFromPdf(buffer: Uint8Array): Promise<string> {
   }
 }
 
-/** Extract text from docx using mammoth. Returns empty string on failure. */
+
 async function extractTextFromDocx(buffer: ArrayBuffer): Promise<string> {
   try {
     const docxBuffer = normalizeToBuffer(buffer);
@@ -377,7 +377,7 @@ async function extractTextFromDocx(buffer: ArrayBuffer): Promise<string> {
   }
 }
 
-/** Extract text from an xlsx buffer. Concatenate all sheets into a single blob. */
+
 function extractTextFromXlsx(buffer: Uint8Array): string {
   try {
     const workbook = XLSX.read(buffer, { type: "array" });
@@ -394,7 +394,7 @@ function extractTextFromXlsx(buffer: Uint8Array): string {
   }
 }
 
-/** Convert the provided binary data to base64 string. */
+
 function convertToBase64(
   buffer: Uint8Array | Buffer | ArrayBuffer
 ): string {
@@ -406,7 +406,7 @@ function convertToBase64(
   return buf.toString("base64");
 }
 
-/* ------------------------------- OCR Helper -------------------------------- */
+
 /**
  * Perform OCR using Typhoon (opentyphoon.ai) when API key is available.
  * Now robustly aggregates text from all pages and nested structures.
@@ -552,7 +552,7 @@ async function ocrExtractFromBuffer(
   }
 }
 
-/* ----------------------------- Content Processors -------------------------- */
+
 
 async function processPdf(buffer: Uint8Array): Promise<FileContent> {
 
@@ -586,9 +586,9 @@ function processImage(
   return { type: "image", content, mimeType };
 }
 
-/* ------------------------------ AI Client Wrapper -------------------------- */
 
-/** Throw if GOOGLE_GENERATIVE_AI_API_KEY not provided. */
+
+
 function getAiClient(): GoogleGenAI {
   const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!key) {
@@ -597,7 +597,7 @@ function getAiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: key });
 }
 
-/* --------------------------- Prompt Generation ----------------------------- */
+
 
 function createCategoriesPromptBase() {
   const categoriesText = Array.from(DOCUMENT_CATEGORIES)
@@ -692,9 +692,9 @@ Do not include the document owner (User ID: ${ownerId}). If content is insuffici
   return [base, contentSection, userSection, instruction].join("\n");
 }
 
-/* ----------------------------- AI Response Parsers ------------------------- */
 
-/** Strict parse expecting a JSON array of strings. Throws on invalid input. */
+
+
 function parseStringArrayStrict(responseText: string | undefined): string[] {
   if (!responseText) throw new Error("AI response was empty");
   const parsed = JSON.parse(responseText);
@@ -726,7 +726,7 @@ function extractJsonArrayFromText(
   }
 }
 
-/* ----------------------------- Main Exported API --------------------------- */
+
 
 /**
  * Determine FileContent from raw upload bytes and mime type.

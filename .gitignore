@@ -46,3 +46,5 @@ package-lock.json
 /.roo/
 /.vscode/
 bun.lock
+
+/convex/_generated

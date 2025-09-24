@@ -192,7 +192,7 @@ export default function ManageUserPage() {
     };
 
     const handleManageDepartmentsClick = () => {
-        setIsEditUserDialogOpen(false); // Close the first dialog
+        setIsEditUserDialogOpen(false);
         setIsManageDepartmentsDialogOpen(true);
     };
 
@@ -216,8 +216,8 @@ export default function ManageUserPage() {
 
     if (permissions === undefined || users === undefined || departments === undefined || roles === undefined) {
         return <div className="flex items-center justify-center h-full">
-        <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
-      </div>
+            <h1 className="text-2xl font-bold text-gray-500">กำลังโหลด...</h1>
+        </div>
     }
 
     if (!permissions.includes("user:read:any")) {
@@ -230,19 +230,15 @@ export default function ManageUserPage() {
 
     return (
         <div className="container mx-auto">
-            {/* --- Header --- */}
-            {/* The sticky header remains for navigation controls. */}
-            <header className="flex sticky top-0 bg-background/95 backdrop-blur-sm z-10 h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mx-2 h-6" />
-          </header>
 
-            {/* --- Main Content Area --- */}
+
+            <header className="flex sticky top-0 bg-background/95 backdrop-blur-sm z-10 h-16 shrink-0 items-center gap-2 border-b px-4">
+                <SidebarTrigger className="-ml-1" />
+                <Separator orientation="vertical" className="mx-2 h-6" />
+            </header>
+
+
             <main className="p-4 md:p-6">
-                {/* Change: The main content is now wrapped in a Card component. 
-                  This provides better visual structure, elevation, and encapsulation 
-                  compared to a simple div with borders.
-                */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-2xl font-bold flex justify-between items-center">
@@ -263,9 +259,7 @@ export default function ManageUserPage() {
                                         <Button onClick={() => setIsCreateUserDialogOpen(true)} size="sm">
                                             สร้างผู้ใช้
                                         </Button>
-                                        {/* <Button onClick={() => setIsBatchCreateUserDialogOpen(true)} size="sm" variant="outline">
-                                            นำเข้าจาก CSV
-                                        </Button> */}
+
                                     </div>
                                 )}
                             </div>
@@ -275,10 +269,6 @@ export default function ManageUserPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {/* Change: Replaced the div-based grid with the shadcn/ui Table component.
-                          This is semantically correct for tabular data, more accessible, and provides
-                          superior styling out-of-the-box (e.g., proper spacing, subtle row dividers).
-                        */}
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -291,7 +281,7 @@ export default function ManageUserPage() {
                             </TableHeader>
                             <TableBody>
                                 {users.length === 0 ? (
-                                    /* Change: The "No users" message is now part of the table body for a cleaner look. */
+
                                     <TableRow>
                                         <TableCell colSpan={5} className="h-24 text-center">
                                             ไม่พบผู้ใช้
@@ -307,7 +297,7 @@ export default function ManageUserPage() {
                                             <TableCell>{user.departmentName || "ไม่มี"}</TableCell>
                                             <TableCell>{user.roleName || "ไม่มี"}</TableCell>
                                             <TableCell className="text-right">
-                                                {/* Change: Encapsulated actions in a div for potential future additions (e.g., a "Delete" button dropdown) */}
+
                                                 <div>
                                                     <Button onClick={() => handleEditClick(user)} size="sm">
                                                         แก้ไข
@@ -333,10 +323,10 @@ export default function ManageUserPage() {
                 </Card>
             </main>
 
-            {/* --- Dialogs (Modals) --- */}
-            {/* The dialogs were already well-structured using shadcn/ui components. No major UI changes were needed here. */}
 
-            {/* Edit User Dialog */}
+
+
+
             {selectedUser && (
                 <Dialog
                     open={isEditUserDialogOpen}
@@ -356,7 +346,7 @@ export default function ManageUserPage() {
                                 </Label>
                                 <Input
                                     id="name"
-                                    name="name" // Added name attribute for consistency
+                                    name="name"
                                     value={editFormData.name}
                                     onChange={handleEditFormChange}
                                     className="col-span-3"
@@ -368,7 +358,7 @@ export default function ManageUserPage() {
                                 </Label>
                                 <Textarea
                                     id="bio"
-                                    name="bio" // Added name attribute for consistency
+                                    name="bio"
                                     value={editFormData.bio}
                                     onChange={handleEditFormChange}
                                     className="col-span-3"
@@ -417,22 +407,22 @@ export default function ManageUserPage() {
                             </div>
                         </div>
                         <DialogFooter>
-                            
-                                <Button
-                                    variant="outline"
-                                    onClick={handleManageDepartmentsClick}
-                                    className="mr-auto"
-                                >
-                                    จัดการแผนกที่ควบคุม
-                                </Button>
-                            
+
+                            <Button
+                                variant="outline"
+                                onClick={handleManageDepartmentsClick}
+                                className="mr-auto"
+                            >
+                                จัดการแผนกที่ควบคุม
+                            </Button>
+
                             <Button onClick={handleUpdateUser}>บันทึกการเปลี่ยนแปลง</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
             )}
 
-            {/* Manage Controlled Departments Dialog */}
+
             {selectedUser && (
                 <Dialog
                     open={isManageDepartmentsDialogOpen}
@@ -471,7 +461,7 @@ export default function ManageUserPage() {
                 </Dialog>
             )}
 
-            {/* Create User Dialog */}
+
             <Dialog
                 open={isCreateUserDialogOpen}
                 onOpenChange={setIsCreateUserDialogOpen}
@@ -566,7 +556,7 @@ export default function ManageUserPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Batch Create User Dialog */}
+
             <Dialog
                 open={isBatchCreateUserDialogOpen}
                 onOpenChange={setIsBatchCreateUserDialogOpen}

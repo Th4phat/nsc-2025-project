@@ -68,7 +68,7 @@ A modern, full‑stack web application that lets teams **create, share, and proc
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/nsc-2025-project.git
+git clone https://github.com/Th4phat/nsc-2025-project
 cd nsc-2025-project
 
 # Install dependencies
